@@ -1,69 +1,104 @@
-'use client';
+"use client";
 
-import { Suspense } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { XR, createXRStore } from '@react-three/xr';
-import { OrbitControls, Preload } from '@react-three/drei';
-import { SceneProvider } from '@/components/utils/SceneContext';
-import Lighting from './Lighting';
-import Room from './Room';
-import Avatar from './Avatar';
-import Loader from '@/components/UI/Loader';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { XR, createXRStore } from "@react-three/xr";
+import { Preload } from "@react-three/drei";
+import type { Camera } from "three";
+import Lighting from "./Lighting";
+import Room from "./Room";
+import Avatar from "./Avatar";
+import CameraController from "./CameraController";
+import ClickIndicator from "./ClickIndicator";
+// import PathDebugger from './PathDebugger';
+import { useScene } from "@/components/utils/SceneContext";
+import { isTouchDevice } from "../utils/helperFunc";
+import Controls from "./Controls";
 
-// Create XR store for VR support
-const xrStore = createXRStore();
+// Create XR store for VR support with custom button (disable default overlay)
+const xrStore = createXRStore({
+  // Disable the default "Enter XR" button overlay
+  domOverlay: false,
+});
 
-export default function SceneCanvas() {
+interface SceneContentProps {
+  cameraRef: React.RefObject<Camera | null>;
+  toggleControlsRef: React.RefObject<((enabled: boolean) => void) | null>;
+}
+
+function SceneContent({ cameraRef, toggleControlsRef }: SceneContentProps) {
+  const { targetPosition } = useScene();
+  const [isTouch] = useState<boolean | undefined>(() => isTouchDevice());
+  const { camera } = useThree();
+  const controlsRef = useRef<any>(null);
+
+  const toggleControls = useCallback((enable: boolean) => {
+    if (controlsRef?.current) (controlsRef.current as any).enabled = enable;
+  }, []);
+
+  // Forward camera reference to parent
+  useEffect(() => {
+    if (cameraRef) {
+      cameraRef.current = camera;
+      toggleControlsRef.current = toggleControls;
+    }
+  }, [camera]);
+
   return (
-    <SceneProvider>
-      <div className="relative h-screen w-screen">
-        {/* XR Enter Button */}
-        <button
-          onClick={() => xrStore.enterVR()}
-          className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2 rounded-full bg-white px-6 py-3 text-sm font-semibold text-black shadow-lg transition-all hover:bg-zinc-200 hover:scale-105"
-        >
-          Enter VR
-        </button>
+    <>
+      {/* Camera control */}
+      <CameraController controlsRef={controlsRef} controlsEnabled={isTouch} />
 
-        <Canvas
-          shadows
-          camera={{
-            position: [0, 3, 8],
-            fov: 50,
-            near: 0.1,
-            far: 1000,
-          }}
-          gl={{
-            antialias: true,
-            alpha: false,
-          }}
-        >
-          <XR store={xrStore}>
-            <Suspense fallback={<Loader />}>
-              {/* Lighting */}
-              <Lighting />
+      {/* Lighting */}
+      <Lighting />
 
-              {/* Scene */}
-              <Room />
-              <Avatar />
+      {/* Scene */}
+      <Room toggleControls={toggleControls} />
+      <Avatar />
 
-              {/* Controls - desktop only */}
-              <OrbitControls
-                enablePan={false}
-                enableZoom={true}
-                minDistance={3}
-                maxDistance={15}
-                minPolarAngle={Math.PI / 6}
-                maxPolarAngle={Math.PI / 2.5}
-                target={[0, 1, 0]}
-              />
+      {/* Click indicator */}
+      <ClickIndicator position={targetPosition} />
 
-              {/* Preload assets */}
-              <Preload all />
-            </Suspense>
-          </XR>
-        </Canvas>
-      </div>
-    </SceneProvider>
+      {/* Debug visualization */}
+      {/* <PathDebugger /> */}
+
+      {/* Controls - rotate enabled on mobile/tablet only */}
+      <Controls ref={controlsRef} enabled={isTouch} />
+
+      {/* Preload assets */}
+      <Preload all />
+    </>
+  );
+}
+
+interface SceneCanvasProps {
+  cameraRef: React.RefObject<Camera | null>;
+  toggleControlsRef: React.RefObject<((enabled: boolean) => void) | null>;
+}
+
+export default function SceneCanvas({
+  cameraRef,
+  toggleControlsRef,
+}: SceneCanvasProps) {
+  return (
+    <div className="relative h-screen w-screen">
+      <Canvas
+        shadows
+        gl={{
+          antialias: true,
+          alpha: false,
+        }}
+        style={{ visibility: "visible" }}
+      >
+        {/* Black background to hide the loading process */}
+        <color attach="background" args={["#000000"]} />
+        <XR store={xrStore}>
+          <SceneContent
+            cameraRef={cameraRef}
+            toggleControlsRef={toggleControlsRef}
+          />
+        </XR>
+      </Canvas>
+    </div>
   );
 }

@@ -1,36 +1,99 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
-import { Group, Vector3, AnimationMixer } from 'three';
+import { Suspense, useRef, useEffect, useState } from 'react';
+import { Group, Vector3 } from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, useAnimations } from '@react-three/drei';
 import { useScene } from '@/components/utils/SceneContext';
 import { calculateSmoothPath, type SimplePath } from '@/components/utils/pathfinding';
-import type { GLTF } from 'three-stdlib';
-
-// Placeholder type - will be replaced with actual model type
-type AvatarGLTF = GLTF & {
-  nodes: any;
-  materials: any;
-};
 
 interface AvatarProps {
   modelPath?: string;
 }
 
-export default function Avatar({ modelPath = '/models/avatar.glb' }: AvatarProps) {
+function AvatarModel({ modelPath = '/models/character.glb' }: AvatarProps) {
   const groupRef = useRef<Group>(null);
-  const [currentPath, setCurrentPath] = useState<SimplePath | null>(null);
   const [avatarState, setAvatarState] = useState<'idle' | 'walking' | 'pointing'>('idle');
-  const { targetPosition, setIsAvatarMoving, setFocusedHotspot } = useScene();
+  const currentAnimationRef = useRef<'idle' | 'walking' | 'pointing'>('idle');
+  const { targetPosition, setIsAvatarMoving, setFocusedHotspot, currentPath, setCurrentPath } = useScene();
 
-  // Load model and animations (placeholder until actual model is added)
-  // const { scene, animations } = useGLTF(modelPath) as AvatarGLTF;
-  // const { actions, mixer } = useAnimations(animations, groupRef);
+  // Load GLB model
+  const { scene, animations } = useGLTF(modelPath);
+  
+  // Set initial position to center of room
+  useEffect(() => {
+    if (groupRef.current && !targetPosition) {
+      groupRef.current.position.set(0.5, 0, -4);
+    }
+  }, [targetPosition]);
+
+  // Setup model
+  useEffect(() => {
+    if (scene) {
+      scene.traverse((child: any) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      
+      // Log available animations
+      console.log('GLB Animations available:', animations.length);
+      animations.forEach((anim, i) => {
+        console.log(`  [${i}] ${anim.name} - Duration: ${anim.duration.toFixed(2)}s`);
+      });
+    }
+  }, [scene, animations]);
+
+  // Load animations from GLB
+  const { actions } = useAnimations(animations, groupRef);
 
   // Movement parameters
   const moveSpeed = 2; // units per second
   const rotationSpeed = 5; // radians per second
+  
+  // Helper function to switch animations immediately
+  const switchAnimation = (newState: 'idle' | 'walking' | 'pointing') => {
+    if (!actions || currentAnimationRef.current === newState) return;
+    
+    const actionNames = Object.keys(actions);
+    const idleAction = actionNames.find(name => name.toLowerCase().includes('idle'));
+    const walkAction = actionNames.find(name => name.toLowerCase().includes('walk'));
+    
+    // Stop all animations
+    if (walkAction && actions[walkAction]) {
+      actions[walkAction].stop();
+    }
+    if (idleAction && actions[idleAction]) {
+      actions[idleAction].stop();
+    }
+    
+    // Play the appropriate animation
+    if (newState === 'idle' && idleAction && actions[idleAction]) {
+      actions[idleAction].reset().play();
+      console.log('IMMEDIATELY switched to idle animation');
+    } else if (newState === 'walking' && walkAction && actions[walkAction]) {
+      actions[walkAction].reset().play();
+      console.log('IMMEDIATELY switched to walk animation');
+    }
+    
+    currentAnimationRef.current = newState;
+  };
+
+  // Initialize idle animation on mount - ensure it plays immediately
+  useEffect(() => {
+    if (!actions || Object.keys(actions).length === 0) return;
+    
+    const actionNames = Object.keys(actions);
+    const idleAction = actionNames.find(name => name.toLowerCase().includes('idle'));
+    
+    if (idleAction && actions[idleAction]) {
+      // Force play idle animation immediately on load
+      actions[idleAction].reset().play();
+      currentAnimationRef.current = 'idle';
+      console.log('Initial idle animation started');
+    }
+  }, [actions]);
 
   useEffect(() => {
     if (targetPosition && groupRef.current) {
@@ -39,23 +102,31 @@ export default function Avatar({ modelPath = '/models/avatar.glb' }: AvatarProps
       setCurrentPath(path);
       setAvatarState('walking');
       setIsAvatarMoving(true);
+      switchAnimation('walking');
     }
-  }, [targetPosition, setIsAvatarMoving]);
+  }, [targetPosition, setIsAvatarMoving, setCurrentPath]);
 
   useFrame((state, delta) => {
-    if (!groupRef.current || !currentPath) return;
+    if (!groupRef.current) return;
+    
+    // If no path, ensure we're in idle state
+    if (!currentPath) {
+      if (avatarState !== 'idle') {
+        setAvatarState('idle');
+        setIsAvatarMoving(false);
+        switchAnimation('idle');
+      }
+      return;
+    }
 
     const target = currentPath.getCurrentTarget();
     if (!target) {
-      // Path complete
+      // Path complete - return to idle immediately
+      console.log('PATH COMPLETE - Switching to idle NOW');
       setCurrentPath(null);
-      setAvatarState('pointing');
+      setAvatarState('idle');
       setIsAvatarMoving(false);
-      
-      // Return to idle after pointing
-      setTimeout(() => {
-        setAvatarState('idle');
-      }, 2000);
+      switchAnimation('idle');
       return;
     }
 
@@ -67,7 +138,24 @@ export default function Avatar({ modelPath = '/models/avatar.glb' }: AvatarProps
     if (distance < 0.1) {
       // Reached waypoint
       currentPath.markCurrentReached();
+      
+      // Check if this was the last waypoint
+      const nextTarget = currentPath.getCurrentTarget();
+      if (!nextTarget) {
+        // No more waypoints - stop immediately
+        console.log('LAST WAYPOINT REACHED - Switching to idle NOW');
+        setCurrentPath(null);
+        setAvatarState('idle');
+        setIsAvatarMoving(false);
+        switchAnimation('idle');
+      }
       return;
+    }
+
+    // Ensure we're in walking state while moving
+    if (avatarState !== 'walking') {
+      setAvatarState('walking');
+      switchAnimation('walking');
     }
 
     // Move
@@ -75,37 +163,31 @@ export default function Avatar({ modelPath = '/models/avatar.glb' }: AvatarProps
     const moveAmount = moveSpeed * delta;
     currentPos.add(direction.multiplyScalar(Math.min(moveAmount, distance)));
 
-    // Rotate to face movement direction
+    // Instantly rotate to face movement direction (no smooth rotation)
     const targetRotation = Math.atan2(direction.x, direction.z);
-    const currentRotation = groupRef.current.rotation.y;
-    const rotationDiff = targetRotation - currentRotation;
-    const normalizedDiff = Math.atan2(Math.sin(rotationDiff), Math.cos(rotationDiff));
-    groupRef.current.rotation.y += Math.sign(normalizedDiff) * Math.min(Math.abs(normalizedDiff), rotationSpeed * delta);
+    groupRef.current.rotation.y = targetRotation;
   });
 
-  // Placeholder avatar until actual model is loaded
+  // Render the GLB character model
   return (
-    <group ref={groupRef} position={[0, 0, 0]}>
-      {/* Simple capsule representation for MVP */}
-      <mesh position={[0, 1, 0]} castShadow>
-        <capsuleGeometry args={[0.3, 1, 8, 16]} />
-        <meshStandardMaterial color="#3b82f6" />
-      </mesh>
-      
-      {/* Head indicator */}
-      <mesh position={[0, 1.8, 0]} castShadow>
-        <sphereGeometry args={[0.25, 16, 16]} />
-        <meshStandardMaterial color="#60a5fa" />
-      </mesh>
-
-      {/* Direction indicator (nose) */}
-      <mesh position={[0, 1.8, 0.25]} castShadow>
-        <coneGeometry args={[0.1, 0.2, 8]} />
-        <meshStandardMaterial color="#1e3a8a" />
-      </mesh>
+    <group ref={groupRef} position={[-1, 0, -2]}>
+      <primitive 
+        object={scene} 
+        scale={1.5}
+        dispose={null}
+      />
     </group>
   );
 }
 
-// Preload the model (when actual model path is available)
-// useGLTF.preload('/models/avatar.glb');
+// Main Avatar component with Suspense boundary
+export default function Avatar(props: AvatarProps) {
+  return (
+    <Suspense fallback={null}>
+      <AvatarModel {...props} />
+    </Suspense>
+  );
+}
+
+// Preload the GLB model
+useGLTF.preload('/models/character.glb');

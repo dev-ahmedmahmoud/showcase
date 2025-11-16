@@ -1,9 +1,68 @@
-import type { AnimationAction, AnimationMixer } from 'three';
+import {
+  Euler,
+  Quaternion,
+  type AnimationAction,
+  type AnimationMixer,
+  type Camera,
+  Vector3,
+} from "three";
+import gsap from "gsap";
+import { HotspotId } from "./SceneContext";
 
-export type AvatarState = 'idle' | 'walking' | 'arrive' | 'pointing';
+export const DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES = new Vector3(
+  -1.85,
+  0,
+  -4.25
+);
+
+const CAMERA_DEFAULT_POSITION_X = 7.080344659541124;
+const CAMERA_DEFAULT_POSITION_Y = 2.3193437876556016;
+const CAMERA_DEFAULT_POSITION_Z = -4.342386631550139;
+const CAMERA_DEFAULT_ROTATION_X = -1.530379167201849;
+const CAMERA_DEFAULT_ROTATION_Y = 1.3707991258152388;
+const CAMERA_DEFAULT_ROTATION_Z = 1.5295580746151831;
+
+// Camera default position
+const CAMERA_POSITIONS = {
+  position: new Vector3(
+    CAMERA_DEFAULT_POSITION_X,
+    CAMERA_DEFAULT_POSITION_Y,
+    CAMERA_DEFAULT_POSITION_Z
+  ),
+  rotation: new Vector3(
+    CAMERA_DEFAULT_ROTATION_X,
+    CAMERA_DEFAULT_ROTATION_Y,
+    CAMERA_DEFAULT_ROTATION_Z
+  ),
+};
+
+// Camera positions for each hotspot (centered and zoomed on target)
+const HOTSPOT_POSITINOS: Record<
+  HotspotId,
+  { position: Vector3; rotation?: Vector3 }
+> = {
+  pc: {
+    position: new Vector3(-1.2, 2.6, -6.6), // Position in front and slightly to side of monitor
+    rotation: new Vector3(0, Math.PI / 2, 0),
+  },
+  ps5: {
+    position: new Vector3(1.9, 1.6, -2.0), // Position behind TV looking at screen
+    rotation: new Vector3(0, Math.PI, 0),
+  },
+  phone: {
+    position: new Vector3(2.5, 1.7, -1.0), // Looking down at phone from above
+    rotation: new Vector3(-Math.PI / 4, 0, 0),
+  },
+  portrait: {
+    position: new Vector3(1.4, 2.2, -7.0), // Position in front of portrait
+    rotation: new Vector3(0, 0, 0),
+  },
+};
+
+export type AvatarState = "idle" | "walking" | "arrive" | "pointing";
 
 export class AnimationStateMachine {
-  private currentState: AvatarState = 'idle';
+  private currentState: AvatarState = "idle";
   private actions: Map<string, AnimationAction> = new Map();
   private mixer: AnimationMixer;
 
@@ -40,12 +99,69 @@ export class AnimationStateMachine {
   private getActionForState(state: AvatarState): AnimationAction | undefined {
     // Map state to animation names (customizable based on loaded animations)
     const stateToAnimation: Record<AvatarState, string> = {
-      idle: 'idle',
-      walking: 'walk',
-      arrive: 'idle',
-      pointing: 'pointing',
+      idle: "idle",
+      walking: "walk",
+      arrive: "idle",
+      pointing: "pointing",
     };
 
     return this.actions.get(stateToAnimation[state]);
   }
 }
+
+export const animateCamera = (
+  camera: Camera,
+  targetId?: HotspotId,
+  onComplete?: () => void
+) => {
+  const target = targetId ? HOTSPOT_POSITINOS[targetId] : CAMERA_POSITIONS;
+  // Animate position and rotation together using GSAP timeline
+  const tl = gsap.timeline();
+
+  tl.to(
+    camera.position,
+    {
+      x: target.position.x,
+      y: target.position.y,
+      z: target.position.z,
+      duration: 1.5,
+      ease: "power2.inOut",
+      onUpdate: () => {
+        camera.updateMatrixWorld(); // make sure camera updates
+      },
+      onComplete: () => {
+        onComplete?.();
+      },
+    },
+    0
+  ); // start at 0 seconds
+
+  if (!target.rotation) return;
+
+  // Current and target quaternions
+  const startQuat = camera.quaternion.clone();
+  const targetQuat = new Quaternion().setFromEuler(
+    new Euler(target.rotation.x, target.rotation.y, target.rotation.z)
+  );
+  // Rotation animation using slerp
+  tl.to(
+    { t: 0 },
+    {
+      t: 1,
+      duration: 1.5,
+      ease: "power2.inOut",
+      onUpdate: function () {
+        camera.quaternion.slerpQuaternions(
+          startQuat,
+          targetQuat,
+          this.targets()[0].t
+        );
+        camera.updateMatrixWorld();
+      },
+      onComplete: function () {
+        onComplete?.();
+      },
+    },
+    0
+  ); // also start at 0 seconds (simultaneously)
+};
