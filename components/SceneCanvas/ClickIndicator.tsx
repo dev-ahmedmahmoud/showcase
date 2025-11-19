@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
-import { Mesh, Vector3 } from 'three';
+import { Mesh, Vector3, BufferGeometry, MeshBasicMaterial } from 'three';
 import { useFrame } from '@react-three/fiber';
 import gsap from 'gsap';
 
@@ -11,7 +11,7 @@ interface ClickIndicatorProps {
 }
 
 export default function ClickIndicator({ position, onComplete }: ClickIndicatorProps) {
-  const meshRef = useRef<Mesh>(null);
+  const meshRef = useRef<Mesh<BufferGeometry, MeshBasicMaterial>>(null);
   const timeRef = useRef(0);
 
   useEffect(() => {
@@ -24,9 +24,7 @@ export default function ClickIndicator({ position, onComplete }: ClickIndicatorP
     meshRef.current.visible = true;
 
     // Reset material opacity
-    if (meshRef.current.material && 'opacity' in meshRef.current.material) {
-      (meshRef.current.material as any).opacity = 1;
-    }
+    meshRef.current.material.opacity = 1;
 
     // Kill any existing animations on this mesh
     gsap.killTweensOf(meshRef.current.scale);

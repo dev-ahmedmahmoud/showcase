@@ -3,6 +3,7 @@
 import { useScene, type HotspotId } from "@/components/utils/SceneContext";
 import { animateCamera } from "../utils/animationHelpers";
 import type { Camera } from "three";
+import { isTouchDevice } from "../utils/helperFunc";
 
 const HOTSPOT_ORDER: HotspotId[] = ["pc", "portrait", "phone", "ps5"];
 
@@ -50,7 +51,7 @@ export default function TopBar({ cameraRef, toggleControlsRef }: TopBarProps) {
       animateCamera(
         cameraRef.current,
         undefined,
-        onAnimateBackToDefaultPositionComplete
+        isTouchDevice() ? onAnimateBackToDefaultPositionComplete : undefined
       );
     }
   };
@@ -137,29 +138,12 @@ export default function TopBar({ cameraRef, toggleControlsRef }: TopBarProps) {
       )}
 
       {/* Top bar with CTA and Back button (original layout) */}
-      <div className="pointer-events-none fixed top-0 left-0 right-0 z-50 flex items-start justify-between p-6">
-        {/* CTA Button - appears when hotspot is focused */}
-        <div className="pointer-events-auto">
-          {content && (
-            <div className="flex flex-col gap-2 rounded-lg bg-transparent p-4 transition-all duration-300">
-              <span className="text-sm font-semibold text-white">
-                {content.title}
-              </span>
-              <a
-                href={content.href}
-                className="flex h-10 items-center justify-center rounded-full bg-linear-to-r from-cyan-500 to-purple-500 px-6 text-sm font-semibold text-white shadow-lg transition-colors hover:from-cyan-400 hover:to-purple-400 hover:scale-105"
-              >
-                {content.cta}
-              </a>
-            </div>
-          )}
-        </div>
-
+      <div className="pointer-events-none fixed top-0 left-0 right-0 z-50 flex items-end justify-between p-6">
         {/* Back Button - appears during interaction */}
         {showBackButton && (
           <button
             onClick={handleGoBack}
-            className="pointer-events-auto flex h-10 items-center gap-2 rounded-full bg-linear-to-r from-cyan-500 to-purple-500/80 px-5 text-sm font-medium text-white shadow-md backdrop-blur-sm transition-all hover:from-cyan-400 hover:to-purple-400 hover:scale-105"
+            className="pointer-events-auto flex h-10 items-center gap-2 rounded-full bg-linear-to-r from-cyan-500 to-purple-500/80 px-5 text-sm font-semibold text-white shadow-md backdrop-blur-sm transition-all hover:from-cyan-400 hover:to-purple-400 hover:scale-105"
             aria-label="Go back to room view"
           >
             <svg
@@ -178,6 +162,23 @@ export default function TopBar({ cameraRef, toggleControlsRef }: TopBarProps) {
             Go Back
           </button>
         )}
+
+        {/* CTA Button - appears when hotspot is focused */}
+        <div className="pointer-events-auto">
+          {content && (
+            <div className="flex flex-col gap-2 rounded-lg bg-transparent transition-all duration-300">
+              <span className="text-sm font-semibold text-white">
+                {content.title}
+              </span>
+              <a
+                href={content.href}
+                className="flex h-10 items-center justify-center rounded-full bg-linear-to-r from-cyan-500 to-purple-500 px-6 text-sm font-semibold text-white shadow-lg transition-colors hover:from-cyan-400 hover:to-purple-400 hover:scale-105"
+              >
+                {content.cta}
+              </a>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

@@ -2,21 +2,53 @@
 
 import { Suspense, useEffect, useRef, useState, memo } from "react";
 import {
-  Vector3,
   AnimationMixer,
   Group,
   Color,
-  VideoTexture,
   Camera,
+  Mesh,
+  MeshStandardMaterial,
+  PointLight,
 } from "three";
 import { useGLTF, useTexture } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import { isValidWalkablePosition } from "@/components/utils/pathfinding";
 import Loader from "@/components/UI/Loader";
 import Portrait from "./Portrait";
 import { animateCamera } from "../utils/animationHelpers";
 import { isTouchDevice } from "../utils/helperFunc";
+import { useVideoTexture } from "../utils/useVideoTexture";
+
+const applyStandardMaterialEffect = (
+  group: Group | null,
+  effect: (material: MeshStandardMaterial) => void
+) => {
+  if (!group) return;
+  group.traverse((object) => {
+    if (object instanceof Mesh) {
+      const material = object.material;
+      if (
+        !Array.isArray(material) &&
+        material instanceof MeshStandardMaterial
+      ) {
+        effect(material);
+      }
+    }
+  });
+};
+
+const applyTransparentOpacity = (group: Group | null, opacity: number) => {
+  if (!group) return;
+  group.traverse((object) => {
+    if (object instanceof Mesh) {
+      const material = object.material;
+      if (!Array.isArray(material) && material.transparent) {
+        material.opacity = opacity;
+      }
+    }
+  });
+};
 
 function AnimatedSpeaker({
   position,
@@ -44,7 +76,6 @@ function AnimatedSpeaker({
     const clonedScene = groupRef.current.children[0];
     if (!clonedScene) return;
 
-    console.log("Creating AnimationMixer for speaker at", position);
     const mixer = new AnimationMixer(clonedScene);
     mixerRef.current = mixer;
 
@@ -52,11 +83,9 @@ function AnimatedSpeaker({
     speaker.animations.forEach((clip) => {
       const action = mixer.clipAction(clip);
       action.play();
-      console.log("Playing animation:", clip.name);
     });
 
     return () => {
-      console.log("Cleaning up AnimationMixer for speaker at", position);
       if (mixerRef.current) {
         mixerRef.current.stopAllAction();
       }
@@ -86,8 +115,8 @@ function CeilingHexagon({
   position: [number, number, number];
   offset?: number;
 }) {
-  const groupRef = useRef<any>(null);
-  const lightRef = useRef<any>(null);
+  const groupRef = useRef<Group>(null);
+  const lightRef = useRef<PointLight | null>(null);
   const darkBlue = new Color("#0040ff"); // Dark blue
   const darkPurple = new Color("#4B0082"); // Dark purple (indigo)
 
@@ -108,14 +137,10 @@ function CeilingHexagon({
 
     const intensity = Math.sin(time * 1.5) * 0.3 + 0.7;
 
-    if (groupRef.current) {
-      groupRef.current.children.forEach((child: any) => {
-        if (child.material) {
-          child.material.emissive.copy(lerpedColor);
-          child.material.emissiveIntensity = 3 + intensity * 2;
-        }
-      });
-    }
+    applyStandardMaterialEffect(groupRef.current, (material) => {
+      material.emissive.copy(lerpedColor);
+      material.emissiveIntensity = 3 + intensity * 2;
+    });
 
     if (lightRef.current) {
       lightRef.current.color.copy(lerpedColor);
@@ -184,8 +209,8 @@ function AnimatedHexagon({
   position: [number, number, number];
   offset?: number;
 }) {
-  const meshRef = useRef<any>(null);
-  const lightRef = useRef<any>(null);
+  const meshRef = useRef<Mesh>(null);
+  const lightRef = useRef<PointLight | null>(null);
   const darkPink = new Color("#c71585"); // Dark pink
   const purple = new Color("#9932cc"); // Purple
   const darkBlue = new Color("#191970"); // Dark blue
@@ -217,8 +242,14 @@ function AnimatedHexagon({
     const intensity = Math.sin(time * 2) * 0.5 + 0.5; // Oscillates between 0 and 1
 
     if (meshRef.current) {
-      meshRef.current.material.emissive.copy(lerpedColor);
-      meshRef.current.material.emissiveIntensity = 3 + intensity * 3; // 3 to 6
+      const material = meshRef.current.material;
+      if (
+        !Array.isArray(material) &&
+        material instanceof MeshStandardMaterial
+      ) {
+        material.emissive.copy(lerpedColor);
+        material.emissiveIntensity = 3 + intensity * 3; // 3 to 6
+      }
     }
 
     if (lightRef.current) {
@@ -257,7 +288,7 @@ function AnimatedLEDPanel({
 }: {
   position: [number, number, number];
 }) {
-  const meshRef = useRef<any>(null);
+  const meshRef = useRef<Mesh>(null);
   const darkPink = new Color("#c71585"); // Dark pink
   const purple = new Color("#9932cc"); // Purple
   const darkBlue = new Color("#191970"); // Dark blue
@@ -289,8 +320,14 @@ function AnimatedLEDPanel({
     const intensity = Math.sin(time * 3) * 0.3 + 0.7; // Oscillates between 0.4 and 1
 
     if (meshRef.current) {
-      meshRef.current.material.emissive.copy(lerpedColor);
-      meshRef.current.material.emissiveIntensity = 2 + intensity * 2; // 2 to 4
+      const material = meshRef.current.material;
+      if (
+        !Array.isArray(material) &&
+        material instanceof MeshStandardMaterial
+      ) {
+        material.emissive.copy(lerpedColor);
+        material.emissiveIntensity = 2 + intensity * 2; // 2 to 4
+      }
     }
   });
 
@@ -307,28 +344,7 @@ function AnimatedLEDPanel({
 }
 
 function PhoneScreen() {
-  const [videoTexture, setVideoTexture] = useState<VideoTexture | null>(null);
-
-  useEffect(() => {
-    const video = document.createElement("video");
-    video.src = "/phone.mp4";
-    video.crossOrigin = "anonymous";
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-
-    video.play().catch((err) => console.log("Video autoplay failed:", err));
-
-    const texture = new VideoTexture(video);
-    setVideoTexture(texture);
-
-    return () => {
-      video.pause();
-      video.src = "";
-    };
-  }, []);
-
-  if (!videoTexture) return null;
+  const { texture: videoTexture } = useVideoTexture("/phone.mp4");
 
   return (
     <mesh position={[0.005, -0.01, 0.0115]} rotation={[0, 0, 0]}>
@@ -413,31 +429,13 @@ function RoomContent({
     const opacity = 0.0 + (Math.sin(time * 2) + 1) * 0.25; // Range: 0.3 to 0.8
 
     // Animate TV highlight
-    if (tvHighlightRef.current) {
-      tvHighlightRef.current.children.forEach((child: any) => {
-        if (child.material && child.material.transparent) {
-          child.material.opacity = opacity;
-        }
-      });
-    }
+    applyTransparentOpacity(tvHighlightRef.current, opacity);
 
     // Animate Monitor highlight
-    if (monitorHighlightRef.current) {
-      monitorHighlightRef.current.children.forEach((child: any) => {
-        if (child.material && child.material.transparent) {
-          child.material.opacity = opacity;
-        }
-      });
-    }
+    applyTransparentOpacity(monitorHighlightRef.current, opacity);
 
     // Animate Phone highlight
-    if (phoneHighlightRef.current) {
-      phoneHighlightRef.current.children.forEach((child: any) => {
-        if (child.material && child.material.transparent) {
-          child.material.opacity = opacity;
-        }
-      });
-    }
+    applyTransparentOpacity(phoneHighlightRef.current, opacity);
   });
 
   const handleHotspotClick = (hotspot?: HotspotId) => {
@@ -448,15 +446,13 @@ function RoomContent({
     setFocusedHotspot(hotspot);
   };
 
-  const handleFloorClick = (event: any) => {
+  const handleFloorClick = (event: ThreeEvent<MouseEvent>) => {
     event.stopPropagation();
-    const clickPosition = event.point as Vector3;
+    const clickPosition = event.point;
 
     // Validate that the clicked position is walkable (not on furniture)
     if (!isValidWalkablePosition(clickPosition)) {
-      console.log(
-        "Invalid position: clicked on furniture or too close to obstacles"
-      );
+      // Invalid position: clicked on furniture or too close to obstacles
       return;
     }
 
@@ -903,9 +899,9 @@ function RoomContent({
       {/* VR Headset on TV Unit */}
       <primitive
         object={vrHeadset.scene.clone()}
-        position={[2.8, 0.9, -0.4]}
+        position={[2.8, 0.68, -0.4]}
         rotation={[0, Math.PI / 0.9, 0]}
-        scale={0.05}
+        scale={1}
         castShadow
       />
 
@@ -1061,11 +1057,11 @@ function RoomContent({
       <group
         position={[2.1, 0.63, -1.55]}
         rotation={[-Math.PI / 2, 0, Math.PI / 6]}
-        onClick={(e: any) => {
+        onClick={(e: ThreeEvent<MouseEvent>) => {
           e.stopPropagation();
           handleHotspotClick("phone");
         }}
-        onPointerOver={(e: any) => {
+        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation();
           if (!isTouch) {
             setIsPhoneHovered(true);

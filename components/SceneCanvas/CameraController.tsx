@@ -3,9 +3,10 @@
 import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import { animateCamera } from "../utils/animationHelpers";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 interface ICameraControllerProps {
-  controlsRef: React.RefObject<any>;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
   controlsEnabled: boolean | undefined;
 }
 
@@ -27,7 +28,7 @@ export default function CameraController({
     }
     // Animate camera to initial position
     animateCamera(camera);
-  }, [camera, controlsEnabled]);
+  }, [camera, controlsEnabled, controlsRef]);
 
   return null;
 }

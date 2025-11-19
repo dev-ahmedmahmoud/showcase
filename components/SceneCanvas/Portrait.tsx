@@ -1,11 +1,25 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { Mesh, VideoTexture, Group } from "three";
-import { useFrame } from "@react-three/fiber";
+import type { MouseEvent as ReactMouseEvent } from "react";
+import { Mesh, Group } from "three";
+import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import { HotspotId, useScene } from "@/components/utils/SceneContext";
+import { useVideoTexture } from "../utils/useVideoTexture";
 import { isTouchDevice } from "../utils/helperFunc";
+
+const applyHighlightOpacity = (group: Group | null, opacity: number) => {
+  if (!group) return;
+  group.traverse((object) => {
+    if (object instanceof Mesh) {
+      const material = object.material;
+      if (!Array.isArray(material) && material.transparent) {
+        material.opacity = opacity;
+      }
+    }
+  });
+};
 
 // Project videos
 const PROJECT_VIDEOS = [
@@ -27,7 +41,6 @@ export default function Portrait({
   const wallDisplay = useGLTF("/models/wall_display.glb");
   const meshRef = useRef<Mesh>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [videoTexture, setVideoTexture] = useState<VideoTexture | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const autoSlideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isTouch = isTouchDevice();
@@ -38,35 +51,27 @@ export default function Portrait({
   const isActive = focusedHotspot === "portrait";
   const currentSlide = PROJECT_VIDEOS[currentIndex];
 
-  const handlePortraitClick = (e: any) => {
+  const handlePortraitClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     onClick?.("portrait");
   };
 
-  // Load and play video
+  const { texture: videoTexture, video } = useVideoTexture(currentSlide.video);
+
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.pause();
+    const previousVideo = videoRef.current;
+    if (previousVideo && previousVideo !== video) {
+      previousVideo.pause();
     }
 
-    const video = document.createElement("video");
-    video.src = currentSlide.video;
-    video.crossOrigin = "anonymous";
-    video.loop = true;
-    video.muted = true;
-    video.playsInline = true;
-
-    video.play().catch((err) => console.log("Video autoplay failed:", err));
-
-    const texture = new VideoTexture(video);
-    setVideoTexture(texture);
     videoRef.current = video;
 
     return () => {
-      video.pause();
-      video.src = "";
+      if (videoRef.current === video) {
+        videoRef.current = null;
+      }
     };
-  }, [currentSlide.video]);
+  }, [video]);
 
   // Auto-slide functionality based on video duration
   useEffect(() => {
@@ -113,14 +118,14 @@ export default function Portrait({
   }, [currentIndex]);
 
   // Manual navigation
-  const handlePrevious = (e: any) => {
+  const handlePrevious = (e: ReactMouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setCurrentIndex(
       (prev) => (prev - 1 + PROJECT_VIDEOS.length) % PROJECT_VIDEOS.length
     );
   };
 
-  const handleNext = (e: any) => {
+  const handleNext = (e: ReactMouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setCurrentIndex((prev) => (prev + 1) % PROJECT_VIDEOS.length);
   };
@@ -139,14 +144,9 @@ export default function Portrait({
     // Pulsing opacity animation for highlight on touch devices
     if (isTouch && highlightRef.current) {
       const time = state.clock.elapsedTime;
-      // Pulse opacity between 0.0 and 0.8 with a smooth sine wave
       const opacity = 0.0 + (Math.sin(time * 2) + 1) * 0.25; // Range: 0.3 to 0.8
 
-      highlightRef.current.children.forEach((child: any) => {
-        if (child.material && child.material.transparent) {
-          child.material.opacity = opacity;
-        }
-      });
+      applyHighlightOpacity(highlightRef.current, opacity);
     }
   });
 

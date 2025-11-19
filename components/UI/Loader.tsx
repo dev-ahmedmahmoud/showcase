@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
@@ -44,7 +43,7 @@ export default function Loader() {
   // Render loader to document.body via createRoot (static UI, only update progress bar/message directly)
   useEffect(() => {
     if (!containerRef.current) {
-      containerRef.current = document.createElement('div');
+      containerRef.current = document.createElement("div");
       document.body.appendChild(containerRef.current);
       rootRef.current = createRoot(containerRef.current);
       rootRef.current.render(
@@ -62,11 +61,17 @@ export default function Loader() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-              <div ref={percentRef} className="text-2xl font-mono font-bold text-cyan-400">
+              <div
+                ref={percentRef}
+                className="text-2xl font-mono font-bold text-cyan-400"
+              >
                 0%
               </div>
             </div>
-            <div ref={messageRef} className="text-sm text-gray-400 animate-pulse">
+            <div
+              ref={messageRef}
+              className="text-sm text-gray-400 animate-pulse"
+            >
               {getLoadingMessage(0)}
             </div>
           </div>

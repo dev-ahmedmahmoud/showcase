@@ -5,6 +5,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { XR, createXRStore } from "@react-three/xr";
 import { Preload } from "@react-three/drei";
 import type { Camera } from "three";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import Lighting from "./Lighting";
 import Room from "./Room";
 import Avatar from "./Avatar";
@@ -14,12 +15,9 @@ import ClickIndicator from "./ClickIndicator";
 import { useScene } from "@/components/utils/SceneContext";
 import { isTouchDevice } from "../utils/helperFunc";
 import Controls from "./Controls";
+import { DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES } from "../utils/animationHelpers";
 
 // Create XR store for VR support with custom button (disable default overlay)
-const xrStore = createXRStore({
-  // Disable the default "Enter XR" button overlay
-  domOverlay: false,
-});
 
 interface SceneContentProps {
   cameraRef: React.RefObject<Camera | null>;
@@ -30,10 +28,15 @@ function SceneContent({ cameraRef, toggleControlsRef }: SceneContentProps) {
   const { targetPosition } = useScene();
   const [isTouch] = useState<boolean | undefined>(() => isTouchDevice());
   const { camera } = useThree();
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
   const toggleControls = useCallback((enable: boolean) => {
-    if (controlsRef?.current) (controlsRef.current as any).enabled = enable;
+    if (controlsRef.current) {
+      if (enable) {
+        controlsRef.current.target.copy(DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES);
+      }
+      controlsRef.current.enabled = enable;
+    }
   }, []);
 
   // Forward camera reference to parent
@@ -42,7 +45,7 @@ function SceneContent({ cameraRef, toggleControlsRef }: SceneContentProps) {
       cameraRef.current = camera;
       toggleControlsRef.current = toggleControls;
     }
-  }, [camera]);
+  }, [camera, cameraRef, toggleControls, toggleControlsRef]);
 
   return (
     <>
@@ -92,12 +95,10 @@ export default function SceneCanvas({
       >
         {/* Black background to hide the loading process */}
         <color attach="background" args={["#000000"]} />
-        <XR store={xrStore}>
-          <SceneContent
+        <SceneContent
             cameraRef={cameraRef}
             toggleControlsRef={toggleControlsRef}
           />
-        </XR>
       </Canvas>
     </div>
   );

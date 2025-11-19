@@ -8,6 +8,12 @@ import {
 } from "three";
 import gsap from "gsap";
 import { HotspotId } from "./SceneContext";
+import { isEmulatedMobile, isMobile } from "./helperFunc";
+
+enum DeviceType {
+  Mobile = "mobile",
+  NoneMobile = "noneMobile",
+}
 
 export const DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES = new Vector3(
   -1.85,
@@ -24,11 +30,18 @@ const CAMERA_DEFAULT_ROTATION_Z = 1.5295580746151831;
 
 // Camera default position
 const CAMERA_POSITIONS = {
-  position: new Vector3(
-    CAMERA_DEFAULT_POSITION_X,
-    CAMERA_DEFAULT_POSITION_Y,
-    CAMERA_DEFAULT_POSITION_Z
-  ),
+  position: {
+    noneMobile: new Vector3(
+      CAMERA_DEFAULT_POSITION_X,
+      CAMERA_DEFAULT_POSITION_Y,
+      CAMERA_DEFAULT_POSITION_Z
+    ),
+    mobile: new Vector3(
+      CAMERA_DEFAULT_POSITION_X,
+      CAMERA_DEFAULT_POSITION_Y,
+      CAMERA_DEFAULT_POSITION_Z
+    ),
+  },
   rotation: new Vector3(
     CAMERA_DEFAULT_ROTATION_X,
     CAMERA_DEFAULT_ROTATION_Y,
@@ -39,22 +52,34 @@ const CAMERA_POSITIONS = {
 // Camera positions for each hotspot (centered and zoomed on target)
 const HOTSPOT_POSITINOS: Record<
   HotspotId,
-  { position: Vector3; rotation?: Vector3 }
+  { position: Record<DeviceType, Vector3>; rotation?: Vector3 }
 > = {
   pc: {
-    position: new Vector3(-1.2, 2.6, -6.6), // Position in front and slightly to side of monitor
+    position: {
+      noneMobile: new Vector3(-1.2, 2.6, -6.6),
+      mobile: new Vector3(2, 2.6, -6.6),
+    },
     rotation: new Vector3(0, Math.PI / 2, 0),
   },
   ps5: {
-    position: new Vector3(1.9, 1.6, -2.0), // Position behind TV looking at screen
+    position: {
+      noneMobile: new Vector3(1.9, 1.6, -2.0),
+      mobile: new Vector3(1.9, 1.6, -3.0),
+    },
     rotation: new Vector3(0, Math.PI, 0),
   },
   phone: {
-    position: new Vector3(2.5, 1.7, -1.0), // Looking down at phone from above
+    position: {
+      noneMobile: new Vector3(2.5, 1.7, -1.0),
+      mobile: new Vector3(2.0, 1.7, -1.0),
+    },
     rotation: new Vector3(-Math.PI / 4, 0, 0),
   },
   portrait: {
-    position: new Vector3(1.4, 2.2, -7.0), // Position in front of portrait
+    position: {
+      noneMobile: new Vector3(1.4, 2.2, -7.0),
+      mobile: new Vector3(1.4, 2.2, -5.0),
+    },
     rotation: new Vector3(0, 0, 0),
   },
 };
@@ -118,12 +143,17 @@ export const animateCamera = (
   // Animate position and rotation together using GSAP timeline
   const tl = gsap.timeline();
 
+  const mobileOrNot =
+    isMobile() || isEmulatedMobile()
+      ? DeviceType.Mobile
+      : DeviceType.NoneMobile;
+
   tl.to(
     camera.position,
     {
-      x: target.position.x,
-      y: target.position.y,
-      z: target.position.z,
+      x: target.position[mobileOrNot].x,
+      y: target.position[mobileOrNot].y,
+      z: target.position[mobileOrNot].z,
       duration: 1.5,
       ease: "power2.inOut",
       onUpdate: () => {
