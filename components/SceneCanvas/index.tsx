@@ -13,18 +13,24 @@ import CameraController from "./CameraController";
 import ClickIndicator from "./ClickIndicator";
 // import PathDebugger from './PathDebugger';
 import { useScene } from "@/components/utils/SceneContext";
-import { isTouchDevice } from "../utils/helperFunc";
+import { isTouchDevice, isVRHeadsetBrowser } from "../utils/helperFunc";
 import Controls from "./Controls";
 import { DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES } from "../utils/animationHelpers";
+import VRAvatar from "./VRAvatar";
+// VRAvatars will be imported when created
 
-// Create XR store for VR support with custom button (disable default overlay)
+
+// XR store is only initialized if running in a VR headset browser
+let xrStore: ReturnType<typeof createXRStore> | null = null;
+
 
 interface SceneContentProps {
   cameraRef: React.RefObject<Camera | null>;
   toggleControlsRef: React.RefObject<((enabled: boolean) => void) | null>;
+  isVR: boolean;
 }
 
-function SceneContent({ cameraRef, toggleControlsRef }: SceneContentProps) {
+function SceneContent({ cameraRef, toggleControlsRef, isVR }: SceneContentProps) {
   const { targetPosition } = useScene();
   const [isTouch] = useState<boolean | undefined>(() => isTouchDevice());
   const { camera } = useThree();
@@ -49,24 +55,26 @@ function SceneContent({ cameraRef, toggleControlsRef }: SceneContentProps) {
 
   return (
     <>
-      {/* Camera control */}
-      <CameraController controlsRef={controlsRef} controlsEnabled={isTouch} />
+      {/* Camera control and Controls only for non-VR */}
+      {!isVR && <CameraController controlsRef={controlsRef} controlsEnabled={isTouch} />}
 
       {/* Lighting */}
       <Lighting />
 
       {/* Scene */}
-      <Room toggleControls={toggleControls} />
-      <Avatar />
+      <Room toggleControls={toggleControls} isVR={isVR} />
+      {/* Avatar logic: VR = arms only (handled later), else full avatar */}
+      {!isVR && <Avatar />}
+      {isVR && <VRAvatar />}
 
-      {/* Click indicator */}
-      <ClickIndicator position={targetPosition} />
+      {/* Click indicator only for non-VR */}
+      {!isVR && <ClickIndicator position={targetPosition} />}
 
       {/* Debug visualization */}
       {/* <PathDebugger /> */}
 
-      {/* Controls - rotate enabled on mobile/tablet only */}
-      <Controls ref={controlsRef} enabled={isTouch} />
+      {/* Controls - rotate enabled on mobile/tablet only, not in VR */}
+      {!isVR && <Controls ref={controlsRef} enabled={isTouch} />}
 
       {/* Preload assets */}
       <Preload all />
@@ -83,8 +91,46 @@ export default function SceneCanvas({
   cameraRef,
   toggleControlsRef,
 }: SceneCanvasProps) {
+  const [isPresenting, setIsPresenting] = useState(false);
+  const [isVR, setIsVR] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (await isVRHeadsetBrowser()) {
+        xrStore = createXRStore();
+        setIsVR(true);
+      }
+    })();
+  }, []);
+
+  const handleEnterVR = () => {
+    xrStore?.enterVR();
+    setIsPresenting(true);
+  };
+
   return (
     <div className="relative h-screen w-screen">
+      {/* Custom Enter VR button for VR-capable browsers and WebXR support */}
+      {isVR && xrStore && !isPresenting && (
+        <button
+          style={{
+            position: "absolute",
+            zIndex: 10,
+            top: 24,
+            right: 24,
+            padding: "12px 24px",
+            background: "#111",
+            color: "#fff",
+            borderRadius: "8px",
+            fontSize: "1.2rem",
+            border: "none",
+            cursor: "pointer",
+          }}
+          onClick={handleEnterVR}
+        >
+          Enter VR
+        </button>
+      )}
       <Canvas
         shadows
         gl={{
@@ -95,10 +141,21 @@ export default function SceneCanvas({
       >
         {/* Black background to hide the loading process */}
         <color attach="background" args={["#000000"]} />
-        <SceneContent
+        {isVR ? (
+          <XR store={xrStore!}>
+            <SceneContent
+              cameraRef={cameraRef}
+              toggleControlsRef={toggleControlsRef}
+              isVR={true}
+            />
+          </XR>
+        ) : (
+          <SceneContent
             cameraRef={cameraRef}
             toggleControlsRef={toggleControlsRef}
+            isVR={false}
           />
+        )}
       </Canvas>
     </div>
   );

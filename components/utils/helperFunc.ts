@@ -6,16 +6,25 @@ export function isTouchDevice() {
 }
 
 // Detects if the browser is running in a VR headset (Quest, Oculus, etc.)
-export function isVRHeadsetBrowser() {
+export async function isVRHeadsetBrowser() {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent;
-  return (
+  const isVRUA = (
     /OculusBrowser|Oculus/i.test(ua) ||
     /Quest|Oculus Quest/i.test(ua) ||
     /PicoBrowser|Pico/i.test(ua) ||
     /Viveport|Vive/i.test(ua) ||
     /XR/i.test(ua)
   );
+  if (!isVRUA) return false;
+  if (navigator.xr && navigator.xr.isSessionSupported) {
+    try {
+      return await navigator.xr.isSessionSupported("immersive-vr");
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 // Detects if browser is in mobile emulation mode (DevTools, Android Studio, Xcode Simulator)
 export function isEmulatedMobile() {

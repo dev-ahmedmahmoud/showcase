@@ -1222,11 +1222,15 @@ function RoomContent({
   );
 }
 
+interface RoomProps {
+  toggleControls: (enabled: boolean) => void;
+  isVR?: boolean;
+}
+
 export default function Room({
   toggleControls,
-}: {
-  toggleControls: (enabled: boolean) => void;
-}) {
+  isVR,
+}: RoomProps) {
   const { camera } = useThree();
 
   return (
