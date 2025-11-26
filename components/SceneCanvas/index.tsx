@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, forwardRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { XR, createXRStore } from "@react-three/xr";
 import { Preload } from "@react-three/drei";
-import type { Camera } from "three";
+import type { Camera, Group } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import Lighting from "./Lighting";
 import Room from "./Room";
@@ -16,21 +16,23 @@ import { useScene } from "@/components/utils/SceneContext";
 import { isTouchDevice, isVRHeadsetBrowser } from "../utils/helperFunc";
 import Controls from "./Controls";
 import { DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES } from "../utils/animationHelpers";
-import VRAvatar from "./VRAvatar";
+import FPSMeter from "../utils/FPSMeter";
 // VRAvatars will be imported when created
-
 
 // XR store is only initialized if running in a VR headset browser
 let xrStore: ReturnType<typeof createXRStore> | null = null;
-
 
 interface SceneContentProps {
   cameraRef: React.RefObject<Camera | null>;
   toggleControlsRef: React.RefObject<((enabled: boolean) => void) | null>;
   isVR: boolean;
+  isPresenting: boolean;
 }
 
-function SceneContent({ cameraRef, toggleControlsRef, isVR }: SceneContentProps) {
+const SceneContent = forwardRef(function SceneContent(
+  { cameraRef, toggleControlsRef, isVR, isPresenting }: SceneContentProps,
+  ref
+) {
   const { targetPosition } = useScene();
   const [isTouch] = useState<boolean | undefined>(() => isTouchDevice());
   const { camera } = useThree();
@@ -39,7 +41,9 @@ function SceneContent({ cameraRef, toggleControlsRef, isVR }: SceneContentProps)
   const toggleControls = useCallback((enable: boolean) => {
     if (controlsRef.current) {
       if (enable) {
-        controlsRef.current.target.copy(DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES);
+        controlsRef.current.target.copy(
+          DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES
+        );
       }
       controlsRef.current.enabled = enable;
     }
@@ -54,33 +58,48 @@ function SceneContent({ cameraRef, toggleControlsRef, isVR }: SceneContentProps)
   }, [camera, cameraRef, toggleControls, toggleControlsRef]);
 
   return (
-    <>
+    <group ref={ref}>
       {/* Camera control and Controls only for non-VR */}
-      {!isVR && <CameraController controlsRef={controlsRef} controlsEnabled={isTouch} />}
+      {!isPresenting && (
+        <CameraController
+          controlsRef={controlsRef}
+          controlsEnabled={isVR && isPresenting ? false : isTouch}
+        />
+      )}
 
       {/* Lighting */}
       <Lighting />
 
       {/* Scene */}
-      <Room toggleControls={toggleControls} isVR={isVR} />
+      <Room
+        toggleControls={toggleControls}
+        isVR={isVR}
+        isPresenting={isPresenting}
+      />
       {/* Avatar logic: VR = arms only (handled later), else full avatar */}
-      {!isVR && <Avatar />}
-      {isVR && <VRAvatar />}
+      {!isPresenting && <Avatar />}
 
       {/* Click indicator only for non-VR */}
-      {!isVR && <ClickIndicator position={targetPosition} />}
+      {!isPresenting && <ClickIndicator position={targetPosition} />}
 
       {/* Debug visualization */}
       {/* <PathDebugger /> */}
 
       {/* Controls - rotate enabled on mobile/tablet only, not in VR */}
-      {!isVR && <Controls ref={controlsRef} enabled={isTouch} />}
+      {!isPresenting && (
+        <Controls
+          ref={controlsRef}
+          enabled={isVR && isPresenting ? false : isTouch}
+        />
+      )}
 
       {/* Preload assets */}
       <Preload all />
-    </>
+      {/* FPS meter for VR dev mode only */}
+      {process.env.NODE_ENV === "development" && <FPSMeter enabled />}
+    </group>
   );
-}
+});
 
 interface SceneCanvasProps {
   cameraRef: React.RefObject<Camera | null>;
@@ -93,6 +112,7 @@ export default function SceneCanvas({
 }: SceneCanvasProps) {
   const [isPresenting, setIsPresenting] = useState(false);
   const [isVR, setIsVR] = useState(false);
+  const worldRef = useRef<Group>(null);
 
   useEffect(() => {
     (async () => {
@@ -103,10 +123,32 @@ export default function SceneCanvas({
     })();
   }, []);
 
+  useEffect(() => {
+    if (isPresenting && worldRef.current) {
+      // Example: spawn user at (5, 0, -3)
+      const spawn = { x: 0.5, y: 0, z: -4 };
+      // Move the world so the user's head (0,0,0) matches the spawn
+      worldRef.current.position.set(-spawn.x, -spawn.y, -spawn.z)
+    }
+  }, [isPresenting, cameraRef.current]);
+
   const handleEnterVR = () => {
     xrStore?.enterVR();
     setIsPresenting(true);
   };
+
+  // VR-specific renderer optimizations
+  // const onCreated = (state: any) => {
+  //   if (isVR) {
+  //     // Lower pixel ratio for VR
+  //     state.gl.setPixelRatio(1);
+  //     // Lower shadow map resolution
+  //     if (state.gl.shadowMap) {
+  //       state.gl.shadowMap.enabled = true;
+  //       state.gl.shadowMap.type = 2; // PCFSoftShadowMap
+  //     }
+  //   }
+  // };
 
   return (
     <div className="relative h-screen w-screen">
@@ -140,13 +182,15 @@ export default function SceneCanvas({
         style={{ visibility: "visible" }}
       >
         {/* Black background to hide the loading process */}
-        <color attach="background" args={["#000000"]} />
+        <color attach="background" args={["#ffffff"]} />
         {isVR ? (
           <XR store={xrStore!}>
             <SceneContent
+              ref={worldRef}
               cameraRef={cameraRef}
               toggleControlsRef={toggleControlsRef}
               isVR={true}
+              isPresenting={isPresenting}
             />
           </XR>
         ) : (
@@ -154,6 +198,7 @@ export default function SceneCanvas({
             cameraRef={cameraRef}
             toggleControlsRef={toggleControlsRef}
             isVR={false}
+            isPresenting={false}
           />
         )}
       </Canvas>

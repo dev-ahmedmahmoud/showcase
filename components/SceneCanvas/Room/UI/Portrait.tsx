@@ -6,8 +6,8 @@ import { Mesh, Group } from "three";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import { HotspotId, useScene } from "@/components/utils/SceneContext";
-import { useVideoTexture } from "../utils/useVideoTexture";
-import { isTouchDevice } from "../utils/helperFunc";
+import { useVideoTexture } from "../../../utils/useVideoTexture";
+import { isTouchDevice } from "../../../utils/helperFunc";
 
 const applyHighlightOpacity = (group: Group | null, opacity: number) => {
   if (!group) return;
@@ -202,25 +202,6 @@ export default function Portrait({
           </mesh>
         </group>
       )}
-
-      {/* RGB LED Strips on wall over the portrait */}
-      <mesh position={[0, 1, 0]} rotation={[0, 0, 0]}>
-        <boxGeometry args={[2, 0.05, 0.05]} />
-        <meshStandardMaterial
-          color="#0040ff"
-          emissive="#0040ff"
-          emissiveIntensity={3}
-        />
-      </mesh>
-
-      <rectAreaLight
-        position={[0, 1.0, -0.12]}
-        rotation={[-Math.PI / 4, 0, 0]}
-        width={2}
-        height={1.135}
-        intensity={80}
-        color="#0040ff"
-      />
 
       {/* Video Display Screen */}
       {videoTexture && (
