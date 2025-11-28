@@ -5,7 +5,7 @@ export default function Lighting() {
     <>
       {/* Ambient light for base illumination */}
       <ambientLight intensity={0.5} />
-      
+
       {/* Key light - main illumination */}
       <directionalLight
         position={[0, 10, 0]}

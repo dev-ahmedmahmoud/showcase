@@ -75,10 +75,10 @@ const Controls = forwardRef<OrbitControlsImpl | null, Props>(
     return (
       <OrbitControls
         ref={ref}
-        enabled={enabled}
-        enablePan={enabled}
-        enableRotate={false}
-        enableZoom={false}
+        enabled={true}
+        enablePan={true}
+        enableRotate={true}
+        enableZoom={true}
         enableDamping
         dampingFactor={0.08}
         target0={DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES}

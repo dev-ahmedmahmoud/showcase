@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useRef, useEffect, useState } from "react";
-import { Group, Vector3, Mesh } from "three";
+import { Group, Vector3, Mesh, Object3D } from "three";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { useScene } from "@/components/utils/SceneContext";
@@ -12,7 +12,7 @@ interface AvatarProps {
 }
 
 function AvatarModel({ modelPath = "/models/character.glb" }: AvatarProps) {
-  const groupRef = useRef<Group>(null);
+  const groupRef = useRef<Object3D>(null);
   const [avatarState, setAvatarState] = useState<
     "idle" | "walking" | "pointing"
   >("idle");
@@ -38,11 +38,6 @@ function AvatarModel({ modelPath = "/models/character.glb" }: AvatarProps) {
           object.castShadow = true;
           object.receiveShadow = true;
         }
-      });
-
-      // Log available animations (removed)
-      animations.forEach((anim, i) => {
-        // (logging removed)
       });
     }
   }, [scene, animations]);

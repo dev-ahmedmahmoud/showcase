@@ -77,8 +77,8 @@ const HOTSPOT_POSITINOS: Record<
   },
   portrait: {
     position: {
-      noneMobile: new Vector3(1.4, 2.2, -7.0),
-      mobile: new Vector3(1.4, 2.2, -5.0),
+      noneMobile: new Vector3(0.5, 2.2, -7.0),
+      mobile: new Vector3(0.5, 2.2, -5.0),
     },
     rotation: new Vector3(0, 0, 0),
   },

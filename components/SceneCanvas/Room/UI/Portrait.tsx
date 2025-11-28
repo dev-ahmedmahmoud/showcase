@@ -6,8 +6,8 @@ import { Mesh, Group } from "three";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Html, useGLTF } from "@react-three/drei";
 import { HotspotId, useScene } from "@/components/utils/SceneContext";
-import { useVideoTexture } from "../utils/useVideoTexture";
-import { isTouchDevice } from "../utils/helperFunc";
+import { useVideoTexture } from "../../../utils/useVideoTexture";
+import { isTouchDevice } from "../../../utils/helperFunc";
 
 const applyHighlightOpacity = (group: Group | null, opacity: number) => {
   if (!group) return;
@@ -163,10 +163,10 @@ export default function Portrait({
 
       {/* Highlight Frame - Portrait shape (rectangular) - Only show on hover */}
       {isHovered && (
-        <group ref={highlightRef} position={[0, 0.1, 0.035]}>
+        <group ref={highlightRef} position={[-0.05, 0.1, 0.035]}>
           {/* Top edge */}
-          <mesh position={[0.05, 0.72, 0]}>
-            <boxGeometry args={[1.975, 0.03, 0.015]} />
+          <mesh position={[0.055, 0.715, 0]}>
+            <boxGeometry args={[1.978, 0.03, 0.015]} />
             <meshBasicMaterial
               color="#0040ff"
               transparent
@@ -174,8 +174,8 @@ export default function Portrait({
             />
           </mesh>
           {/* Bottom edge */}
-          <mesh position={[0.05, -0.72, 0]}>
-            <boxGeometry args={[1.975, 0.03, 0.015]} />
+          <mesh position={[0.055, -0.715, 0]}>
+            <boxGeometry args={[1.978, 0.03, 0.015]} />
             <meshBasicMaterial
               color="#0040ff"
               transparent
@@ -202,25 +202,6 @@ export default function Portrait({
           </mesh>
         </group>
       )}
-
-      {/* RGB LED Strips on wall over the portrait */}
-      <mesh position={[0, 1, 0]} rotation={[0, 0, 0]}>
-        <boxGeometry args={[2, 0.05, 0.05]} />
-        <meshStandardMaterial
-          color="#0040ff"
-          emissive="#0040ff"
-          emissiveIntensity={3}
-        />
-      </mesh>
-
-      <rectAreaLight
-        position={[0, 1.0, -0.12]}
-        rotation={[-Math.PI / 4, 0, 0]}
-        width={2}
-        height={1.135}
-        intensity={80}
-        color="#0040ff"
-      />
 
       {/* Video Display Screen */}
       {videoTexture && (
@@ -308,11 +289,10 @@ export default function Portrait({
             {PROJECT_VIDEOS.map((_, index) => (
               <div
                 key={index}
-                className={`h-1 rounded-full transition-all ${
-                  index === currentIndex
-                    ? "bg-linear-to-r from-cyan-400 to-purple-400 w-16 shadow-[0_0_10px_rgba(0,255,255,0.8)]"
-                    : "bg-cyan-400/30 w-8 hover:bg-cyan-400/50"
-                }`}
+                className={`h-1 rounded-full transition-all ${index === currentIndex
+                  ? "bg-linear-to-r from-cyan-400 to-purple-400 w-16 shadow-[0_0_10px_rgba(0,255,255,0.8)]"
+                  : "bg-cyan-400/30 w-8 hover:bg-cyan-400/50"
+                  }`}
               />
             ))}
           </div>
