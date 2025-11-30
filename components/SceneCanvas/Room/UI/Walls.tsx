@@ -3,10 +3,8 @@
 import { useTexture } from "@react-three/drei";
 
 export default function Walls({
-  isVR,
   wallHeightOffset = 0,
 }: {
-  isVR: boolean;
   wallHeightOffset?: number;
 }) {
   const wallTextures = useTexture({
@@ -55,16 +53,15 @@ export default function Walls({
       </mesh>
 
       {/* Next to TV (PS5 section) */}
-      {isVR && (
-        <mesh position={[5.4, 2, -4.5]} rotation={[0, Math.PI / 2, 0]}>
-          <boxGeometry args={[9.25, 4 + wallHeightOffset, 0.2]} />
-          <meshStandardMaterial
-            map={wallTextures.map}
-            normalMap={wallTextures.normalMap}
-            roughnessMap={wallTextures.roughnessMap}
-          />
-        </mesh>
-      )}
+      <mesh position={[5.4, 2, -4.5]} rotation={[0, Math.PI / 2, 0]}>
+        <boxGeometry args={[9.25, 4 + wallHeightOffset, 0.2]} />
+        <meshStandardMaterial
+          map={wallTextures.map}
+          normalMap={wallTextures.normalMap}
+          roughnessMap={wallTextures.roughnessMap}
+        />
+      </mesh>
+
 
       {/* Inner Walls - Creating the L-shape partition */}
       {/* Vertical inner wall (separates PC from PS5 section) */}

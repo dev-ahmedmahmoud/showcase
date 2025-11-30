@@ -1,16 +1,59 @@
 import { forwardRef, useState } from "react";
 import { useVideoTexture } from "@/components/utils/useVideoTexture";
-import { useGLTF } from "@react-three/drei";
+import { useGLTF, Text } from "@react-three/drei";
 import { ThreeEvent } from "@react-three/fiber";
 import { HotspotId } from "@/components/utils/SceneContext";
+import { useXR } from "@react-three/xr";
+import { links } from "@/components/utils/data";
+
+function PhoneOnTableHighlight() {
+  const session = useXR((state) => state.session);
+
+  const handleLinkClick = () => {
+    if (session) {
+      session.end();
+    }
+
+    if (!Array.isArray(links.phone)) {
+      window.open(links.phone.project, "_blank");
+    }
+  };
+
+  return (
+    <mesh
+      position={[0, 0.4, 0]}
+      rotation={[0, 0, Math.PI / 30]}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleLinkClick();
+      }}
+      onPointerOver={() => (document.body.style.cursor = "pointer")}
+      onPointerOut={() => (document.body.style.cursor = "auto")}
+    >
+      <planeGeometry args={[0.5, 0.15]} />
+      <meshBasicMaterial color="#9932cc" transparent opacity={0.5} />
+      <Text
+        position={[0, 0, 0.01]}
+        fontSize={0.05}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        REACH OUT
+      </Text>
+    </mesh>
+  );
+}
 
 const PhoneOnTable = forwardRef(function PhoneOnTable(
   {
     isTouch,
     handleHotspotClick,
+    isPresenting,
   }: {
     isTouch: boolean;
     handleHotspotClick: (hotspot?: HotspotId) => void;
+    isPresenting?: boolean;
   },
   ref
 ) {
@@ -18,7 +61,7 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
   const phone = useGLTF("/models/phone.glb");
   const { texture: videoTexture } = useVideoTexture("/phone.mp4");
 
-  const [isPhoneHovered, setIsPhoneHovered] = useState(isTouch);
+  const [isPhoneHovered, setIsPhoneHovered] = useState(isTouch && !isPresenting);
 
   return (
     <group>
@@ -40,13 +83,13 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
         }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation();
-          if (!isTouch) {
+          if (!isTouch && !isPresenting) {
             setIsPhoneHovered(true);
             document.body.style.cursor = "pointer";
           }
         }}
         onPointerOut={() => {
-          if (!isTouch) {
+          if (!isTouch && !isPresenting) {
             setIsPhoneHovered(false);
             document.body.style.cursor = "auto";
           }
@@ -116,6 +159,9 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
           distance={2}
           color="#9932cc"
         />
+
+        {/* VR UI - Visit Project Button */}
+        {isPresenting && <PhoneOnTableHighlight />}
       </group>
     </group>
   );

@@ -1,9 +1,11 @@
 "use client";
 
-import { useScene, type HotspotId } from "@/components/utils/SceneContext";
-import { animateCamera } from "../utils/animationHelpers";
+import Link from "next/link";
 import type { Camera } from "three";
 import { isTouchDevice } from "../utils/helperFunc";
+import { links } from "../utils/data";
+import { animateCamera } from "../utils/animationHelpers";
+import { HotspotId, useScene } from "@/components/utils/SceneContext";
 
 const HOTSPOT_ORDER: HotspotId[] = ["pc", "portrait", "phone", "ps5"];
 
@@ -14,22 +16,22 @@ const HOTSPOT_CONTENT: Record<
   pc: {
     title: "Curious?",
     cta: "About Me",
-    href: "https://portfolio.ahmedmahmoud.de/en#about",
+    href: Array.isArray(links.pc) ? links.pc[0].project : links.pc.project,
   },
   ps5: {
-    title: "VR Game Development",
-    cta: "Check VR Game",
-    href: "https://minigame.ahmedmahmoud.de/en#about",
+    title: "XR Development",
+    cta: "Check The XR Experience",
+    href: Array.isArray(links.ps5) ? links.ps5[0].project : links.ps5.project,
   },
   phone: {
     title: "Get In Touch",
     cta: "Reach Out",
-    href: "https://portfolio.ahmedmahmoud.de/en#contact",
+    href: Array.isArray(links.phone) ? links.phone[0].project : links.phone.project,
   },
   portrait: {
     title: "My Projects",
     cta: "View All Projects",
-    href: "https://portfolio.ahmedmahmoud.de/en#projects",
+    href: Array.isArray(links.allProjects) ? links.allProjects[0].project : links.allProjects.project,
   },
 };
 
@@ -90,7 +92,7 @@ export default function TopBar({ cameraRef, toggleControlsRef }: TopBarProps) {
       {canNavigate && (
         <button
           onClick={handlePrev}
-          className="pointer-events-auto fixed left-2 top-1/2 -translate-y-1/2 flex h-24 w-24 items-center justify-center z-50"
+          className="pointer-events-auto fixed bottom-1/8 left-4 flex h-24 w-24 items-center justify-center z-50 md:top-1/2 md:-translate-y-1/2 md:left-2"
           aria-label="Previous hotspot"
           style={{ outline: "none" }}
         >
@@ -115,7 +117,7 @@ export default function TopBar({ cameraRef, toggleControlsRef }: TopBarProps) {
       {canNavigate && (
         <button
           onClick={handleNext}
-          className="pointer-events-auto fixed right-2 top-1/2 -translate-y-1/2 flex h-24 w-24 items-center justify-center z-50"
+          className="pointer-events-auto fixed bottom-1/8 right-4 flex h-24 w-24 items-center justify-center z-50 md:top-1/2 md:-translate-y-1/2 md:right-2"
           aria-label="Next hotspot"
           style={{ outline: "none" }}
         >
@@ -170,12 +172,13 @@ export default function TopBar({ cameraRef, toggleControlsRef }: TopBarProps) {
               <span className="text-sm font-semibold text-white">
                 {content.title}
               </span>
-              <a
+              <Link
                 href={content.href}
+                target="_blank"
                 className="flex h-10 items-center justify-center rounded-full bg-linear-to-r from-cyan-500 to-purple-500 px-6 text-sm font-semibold text-white shadow-lg transition-colors hover:from-cyan-400 hover:to-purple-400 hover:scale-105"
               >
                 {content.cta}
-              </a>
+              </Link>
             </div>
           )}
         </div>

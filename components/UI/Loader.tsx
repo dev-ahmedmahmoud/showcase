@@ -48,9 +48,9 @@ export default function Loader() {
       rootRef.current = createRoot(containerRef.current);
       rootRef.current.render(
         <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black">
-          <div className="flex flex-col items-center gap-6">
-            <div className="text-4xl font-bold text-white mb-4">
-              Loading Experience
+          <div className="flex flex-col items-center justify-center gap-6">
+            <div className="text-4xl font-bold text-white mb-4 text-center">
+              Loading Portfolio Experience
             </div>
             <div className="w-80 h-2 overflow-hidden rounded-full bg-white/10 border border-cyan-500/30">
               <div

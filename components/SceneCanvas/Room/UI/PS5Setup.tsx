@@ -1,8 +1,8 @@
-import { forwardRef, memo, useEffect, useRef, useState } from "react";
+import { forwardRef, useState } from "react";
 import { HotspotId } from "@/components/utils/SceneContext";
-import { useGLTF, useTexture } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { Group, AnimationMixer } from "three";
+import { useGLTF, useTexture, Text } from "@react-three/drei";
+import { useXR } from "@react-three/xr";
+import { links } from "@/components/utils/data";
 
 function AnimatedSpeaker({
   position,
@@ -22,6 +22,45 @@ function AnimatedSpeaker({
   );
 }
 
+function PS5SetupHighlight() {
+  const session = useXR((state) => state.session);
+
+  const handleLinkClick = () => {
+    if (session) {
+      session.end();
+    }
+
+    if (!Array.isArray(links.ps5)) {
+      window.open(links.ps5.project, "_blank");
+    }
+  };
+
+  return (
+    <mesh
+      position={[0, 1.5, -0.5]}
+      rotation={[0, Math.PI, 0]}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleLinkClick();
+      }}
+      onPointerOver={() => (document.body.style.cursor = "pointer")}
+      onPointerOut={() => (document.body.style.cursor = "auto")}
+    >
+      <planeGeometry args={[1.5, 0.4]} />
+      <meshBasicMaterial color="#9932cc" transparent opacity={0.5} />
+      <Text
+        position={[0, 0, 0.01]}
+        fontSize={0.15}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        CHECK OUT MY XR WORK
+      </Text>
+    </mesh>
+  );
+}
+
 const Tv = forwardRef(function Tv(
   {
     position,
@@ -29,12 +68,14 @@ const Tv = forwardRef(function Tv(
     scale,
     isTouch,
     handleHotspotClick,
+    isPresenting,
   }: {
     position: [number, number, number];
     rotation: [number, number, number];
     scale: number;
     isTouch: boolean;
     handleHotspotClick: (hotspot?: HotspotId) => void;
+    isPresenting?: boolean;
   },
   ref
 ) {
@@ -54,13 +95,13 @@ const Tv = forwardRef(function Tv(
       }}
       onPointerOver={(e) => {
         e.stopPropagation();
-        if (!isTouch) {
+        if (!isTouch && !isPresenting) {
           setIsTvHovered(true);
           document.body.style.cursor = "pointer";
         }
       }}
       onPointerOut={() => {
-        if (!isTouch) {
+        if (!isTouch && !isPresenting) {
           setIsTvHovered(false);
           document.body.style.cursor = "auto";
         }
@@ -123,6 +164,9 @@ const Tv = forwardRef(function Tv(
           </mesh>
         </group>
       )}
+
+      {/* VR UI - Visit Project Button */}
+      {isPresenting && <PS5SetupHighlight />}
     </group>
   );
 });
@@ -229,9 +273,11 @@ const PS5Setup = forwardRef(function PS5Setup(
   {
     isTouch,
     handleHotspotClick,
+    isPresenting,
   }: {
     isTouch: boolean;
     handleHotspotClick: (hotspot?: HotspotId) => void;
+    isPresenting?: boolean;
   },
   ref
 ) {
@@ -246,13 +292,14 @@ const PS5Setup = forwardRef(function PS5Setup(
         scale={1}
         isTouch={isTouch}
         handleHotspotClick={handleHotspotClick}
+        isPresenting={isPresenting}
       />
 
-      <TvUnit
+      {!isTouch && <TvUnit
         position={[1.8, 0, -0.3]}
         rotation={[0, Math.PI / 2, 0]}
         scale={1}
-      />
+      />}
 
       <Speakers
         position={[3.6, 1.4, -0.44]}

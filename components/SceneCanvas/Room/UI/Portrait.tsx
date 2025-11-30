@@ -4,10 +4,12 @@ import { useRef, useState, useEffect } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import { Mesh, Group } from "three";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { Html, useGLTF } from "@react-three/drei";
+import { Html, useGLTF, Text } from "@react-three/drei";
+import { useXR } from "@react-three/xr";
 import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import { useVideoTexture } from "../../../utils/useVideoTexture";
 import { isTouchDevice } from "../../../utils/helperFunc";
+import { links } from "@/components/utils/data";
 
 const applyHighlightOpacity = (group: Group | null, opacity: number) => {
   if (!group) return;
@@ -23,20 +25,177 @@ const applyHighlightOpacity = (group: Group | null, opacity: number) => {
 
 // Project videos
 const PROJECT_VIDEOS = [
-  { video: "/project1.mp4", link: "https://portfolio.ahmedmahmoud.de" },
-  { video: "/project2.mp4", link: "https://iphone15replica.ahmedmahmoud.de" },
+  "/project1.mp4",
+  "/project2.mp4",
+  "/project3.mp4",
 ];
 
 interface PortraitProps {
   position: [number, number, number];
   rotation?: [number, number, number];
   onClick?: (hotspot: HotspotId) => void;
+  isPresenting?: boolean;
+}
+
+interface PortraitHighlightProps {
+  onPrevious: (e: ThreeEvent<MouseEvent>) => void;
+  onNext: (e: ThreeEvent<MouseEvent>) => void;
+  onLinkClick: (type: "project" | "github" | "all projects", session?: XRSession) => void;
+  currentIndex: number;
+  totalSlides: number;
+}
+
+function PortraitHighlight({
+  onPrevious,
+  onNext,
+  onLinkClick,
+  currentIndex,
+  totalSlides,
+}: PortraitHighlightProps) {
+  const session = useXR(state => state.session);
+
+  return (
+    <group position={[0, -0.6, 0.2]}>
+      {/* Previous Button */}
+      <mesh
+        position={[-0.6, 0, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onPrevious(e);
+        }}
+        onPointerOver={() => (document.body.style.cursor = "pointer")}
+        onPointerOut={() => (document.body.style.cursor = "auto")}
+      >
+        <planeGeometry args={[0.2, 0.2]} />
+        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
+        <Text
+          position={[0, 0, 0.01]}
+          fontSize={0.1}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {"<"}
+        </Text>
+      </mesh>
+
+      {/* Visit Project Button */}
+      <mesh
+        position={[0, 0, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onLinkClick("project", session);
+        }}
+        onPointerOver={() => (document.body.style.cursor = "pointer")}
+        onPointerOut={() => (document.body.style.cursor = "auto")}
+      >
+        <planeGeometry args={[0.8, 0.2]} />
+        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
+        <Text
+          position={[0, 0, 0.01]}
+          fontSize={0.08}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          PROJECT
+        </Text>
+      </mesh>
+
+      {/* Visit Project Github Button */}
+      <mesh
+        position={[1, 0, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onLinkClick("github", session);
+        }}
+        onPointerOver={() => (document.body.style.cursor = "pointer")}
+        onPointerOut={() => (document.body.style.cursor = "auto")}
+      >
+        <planeGeometry args={[0.8, 0.2]} />
+        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
+        <Text
+          position={[0, 0, 0.01]}
+          fontSize={0.08}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          GITHUB
+        </Text>
+      </mesh>
+
+      {/* Next Button */}
+      <mesh
+        position={[1.6, 0, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onNext(e);
+        }}
+        onPointerOver={() => (document.body.style.cursor = "pointer")}
+        onPointerOut={() => (document.body.style.cursor = "auto")}
+      >
+        <planeGeometry args={[0.2, 0.2]} />
+        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
+        <Text
+          position={[0, 0, 0.01]}
+          fontSize={0.1}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {">"}
+        </Text>
+      </mesh>
+
+      {/* Progress Indicator */}
+      <group position={[0, -0.2, 0]}>
+        {Array.from({ length: totalSlides }).map((_, index) => (
+          <mesh
+            key={index}
+            position={[(index - (totalSlides - 1) / 2) * 0.1, 0, 0]}
+          >
+            <circleGeometry args={[0.02, 32]} />
+            <meshBasicMaterial
+              color={index === currentIndex ? "#00ffff" : "#0040ff"}
+              transparent
+              opacity={0.8}
+            />
+          </mesh>
+        ))}
+      </group>
+
+      { /* Visit all projects button */}
+      <mesh
+        position={[0, -0.4, 0]}
+        onClick={(e) => {
+          e.stopPropagation();
+          onLinkClick("all projects", session);
+        }}
+        onPointerOver={() => (document.body.style.cursor = "pointer")}
+        onPointerOut={() => (document.body.style.cursor = "auto")}
+      >
+        <planeGeometry args={[2, 0.2]} />
+        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
+        <Text
+          position={[0, 0, 0.01]}
+          fontSize={0.08}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+        >
+          SEE ALL PROJECTS
+        </Text>
+      </mesh>
+    </group>
+  );
 }
 
 export default function Portrait({
   position,
   rotation = [0, 0, 0],
   onClick,
+  isPresenting,
 }: PortraitProps) {
   const wallDisplay = useGLTF("/models/wall_display.glb");
   const meshRef = useRef<Mesh>(null);
@@ -44,7 +203,7 @@ export default function Portrait({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const autoSlideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isTouch = isTouchDevice();
-  const [isHovered, setIsHovered] = useState(isTouch);
+  const [isHovered, setIsHovered] = useState(isTouch && !isPresenting);
   const highlightRef = useRef<Group>(null);
   const { focusedHotspot } = useScene();
 
@@ -56,7 +215,7 @@ export default function Portrait({
     onClick?.("portrait");
   };
 
-  const { texture: videoTexture, video } = useVideoTexture(currentSlide.video);
+  const { texture: videoTexture, video } = useVideoTexture(currentSlide);
 
   useEffect(() => {
     const previousVideo = videoRef.current;
@@ -118,20 +277,31 @@ export default function Portrait({
   }, [currentIndex]);
 
   // Manual navigation
-  const handlePrevious = (e: ReactMouseEvent<HTMLButtonElement>) => {
+  const handlePrevious = (e: ReactMouseEvent<HTMLButtonElement> | ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     setCurrentIndex(
       (prev) => (prev - 1 + PROJECT_VIDEOS.length) % PROJECT_VIDEOS.length
     );
   };
 
-  const handleNext = (e: ReactMouseEvent<HTMLButtonElement>) => {
+  const handleNext = (e: ReactMouseEvent<HTMLButtonElement> | ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     setCurrentIndex((prev) => (prev + 1) % PROJECT_VIDEOS.length);
   };
 
-  const handleLinkClick = () => {
-    window.open(currentSlide.link, "_blank");
+  const handleLinkClick = (type: "project" | "github" | "all projects", session?: XRSession) => {
+    if (session) {
+      session.end();
+    }
+    if (type === "all projects") {
+      if (!Array.isArray(links.allProjects)) {
+        window.open(links.allProjects.project, "_blank");
+      }
+    } else {
+      if (Array.isArray(links.portrait)) {
+        window.open(links.portrait[currentIndex][type], "_blank");
+      }
+    }
   };
 
   // Pulse animation for video scale
@@ -142,7 +312,7 @@ export default function Portrait({
     }
 
     // Pulsing opacity animation for highlight on touch devices
-    if (isTouch && highlightRef.current) {
+    if (isTouch && !isPresenting && highlightRef.current) {
       const time = state.clock.elapsedTime;
       const opacity = 0.0 + (Math.sin(time * 2) + 1) * 0.25; // Range: 0.3 to 0.8
 
@@ -211,13 +381,13 @@ export default function Portrait({
           onClick={handlePortraitClick}
           onPointerOver={(e) => {
             e.stopPropagation();
-            if (!isTouch) {
+            if (!isTouch && !isPresenting) {
               setIsHovered(true);
               document.body.style.cursor = "pointer";
             }
           }}
           onPointerOut={() => {
-            if (!isTouch) {
+            if (!isTouch && !isPresenting) {
               setIsHovered(false);
               document.body.style.cursor = "auto";
             }
@@ -229,7 +399,17 @@ export default function Portrait({
       )}
 
       {/* Interactive UI when hotspot is active */}
-      {isActive && (
+      {isPresenting && (
+        <PortraitHighlight
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onLinkClick={handleLinkClick}
+          currentIndex={currentIndex}
+          totalSlides={PROJECT_VIDEOS.length}
+        />
+      )}
+
+      {isActive && !isPresenting && (
         <Html
           position={[0, 0, 0.1]}
           center
@@ -257,7 +437,10 @@ export default function Portrait({
 
             {/* Link Button - Cyberpunk style */}
             <button
-              onClick={handleLinkClick}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLinkClick("project");
+              }}
               className="px-12 py-6 relative bg-linear-to-r from-cyan-500 to-purple-500 text-white font-bold text-2xl hover:from-cyan-400 hover:to-purple-400 transition-all hover:scale-105 backdrop-blur-md shadow-[0_0_20px_rgba(0,255,255,0.3)] hover:shadow-[0_0_40px_rgba(0,255,255,0.6)] border-2 border-cyan-300"
               style={{
                 clipPath:

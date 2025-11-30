@@ -21,7 +21,7 @@ export const DEFAULT_CAMERA_LOOK_AT_FOR_MOBILE_DEVICES = new Vector3(
   -4.25
 );
 
-const CAMERA_DEFAULT_POSITION_X = 7.080344659541124;
+const CAMERA_DEFAULT_POSITION_X = 5.380344659541124;
 const CAMERA_DEFAULT_POSITION_Y = 2.3193437876556016;
 const CAMERA_DEFAULT_POSITION_Z = -4.342386631550139;
 const CAMERA_DEFAULT_ROTATION_X = -1.530379167201849;
@@ -71,14 +71,14 @@ const HOTSPOT_POSITINOS: Record<
   phone: {
     position: {
       noneMobile: new Vector3(2.5, 1.7, -1.0),
-      mobile: new Vector3(2.0, 1.7, -1.0),
+      mobile: new Vector3(2.1, 1.2, -0.9),
     },
     rotation: new Vector3(-Math.PI / 4, 0, 0),
   },
   portrait: {
     position: {
-      noneMobile: new Vector3(0.5, 2.2, -7.0),
-      mobile: new Vector3(0.5, 2.2, -5.0),
+      noneMobile: new Vector3(0.35, 2.2, -7.0),
+      mobile: new Vector3(0.35, 2.2, -5.0),
     },
     rotation: new Vector3(0, 0, 0),
   },

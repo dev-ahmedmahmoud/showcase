@@ -1,14 +1,56 @@
 import { useState, forwardRef } from "react";
-import { useGLTF, useTexture } from "@react-three/drei";
-import { HotspotId } from "@/components/utils/SceneContext";
+import { useGLTF, useTexture, Text } from "@react-three/drei";
+import { HotspotId, useScene } from "@/components/utils/SceneContext";
+import { useXR } from "@react-three/xr";
+import { links } from "@/components/utils/data";
+
+function PcSetupHighlight() {
+  const session = useXR((state) => state.session);
+
+  const handleLinkClick = () => {
+    if (session) {
+      session.end();
+    }
+    if (!Array.isArray(links.pc)) {
+      window.open(links.pc.project, "_blank");
+    }
+  };
+
+  return (
+    <mesh
+      position={[0, 3.7, 0]}
+      rotation={[0, Math.PI / 2, 0]}
+      onClick={(e) => {
+        e.stopPropagation();
+        handleLinkClick();
+      }}
+      onPointerOver={() => (document.body.style.cursor = "pointer")}
+      onPointerOut={() => (document.body.style.cursor = "auto")}
+    >
+      <planeGeometry args={[1.5, 0.4]} />
+      <meshBasicMaterial color="#ff0080" transparent opacity={0.5} />
+      <Text
+        position={[0, 0, 0.01]}
+        fontSize={0.15}
+        color="white"
+        anchorX="center"
+        anchorY="middle"
+      >
+        CURIOUS ABOUT ME?
+      </Text>
+    </mesh>
+  );
+}
 
 const PcSetup = forwardRef(function PcSetup(
   {
     isTouch,
     handleHotspotClick,
+    isPresenting,
   }: {
     isTouch: boolean;
     handleHotspotClick: (hotspot?: HotspotId) => void;
+    isPresenting?: boolean;
   },
   ref
 ) {
@@ -19,7 +61,9 @@ const PcSetup = forwardRef(function PcSetup(
   const pcChair = useGLTF("/models/pc_chair.glb");
   const pcDisplayTexture = useTexture("/pc_display.png");
 
-  const [isMonitorHovered, setIsMonitorHovered] = useState(isTouch);
+  const { focusedHotspot } = useScene();
+
+  const [isMonitorHovered, setIsMonitorHovered] = useState(isTouch && !isPresenting);
 
   return (
     <group ref={ref}>
@@ -64,13 +108,13 @@ const PcSetup = forwardRef(function PcSetup(
           }}
           onPointerOver={(e) => {
             e.stopPropagation();
-            if (!isTouch) {
+            if (!isTouch && !isPresenting) {
               setIsMonitorHovered(true);
               document.body.style.cursor = "pointer";
             }
           }}
           onPointerOut={() => {
-            if (!isTouch) {
+            if (!isTouch && !isPresenting) {
               setIsMonitorHovered(false);
               document.body.style.cursor = "auto";
             }
@@ -143,17 +187,20 @@ const PcSetup = forwardRef(function PcSetup(
             intensity={30}
             color="#ffffff"
           />
+
+          {/* VR UI - Visit Project Button */}
+          {isPresenting && <PcSetupHighlight />}
         </group>
       )}
 
       {/* Gaming Chair */}
-      <primitive
+      {focusedHotspot !== "pc" && <primitive
         object={pcChair.scene.clone()}
         position={[-0.5, 0.5, -6.7]}
         rotation={[0, -Math.PI / 2, 0]}
         scale={0.007}
         castShadow
-      />
+      />}
     </group>
   );
 });

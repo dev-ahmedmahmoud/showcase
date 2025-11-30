@@ -92,25 +92,28 @@ function RoomContent({
       <Floor />
       <Ceiling ceilingHeightOffset={WALL_HEIGHT_OFFSET} />
       <CeilingDecoration ceilingHeightOffset={WALL_HEIGHT_OFFSET} />
-      <Walls isVR={isVR && isPresenting} wallHeightOffset={WALL_HEIGHT_OFFSET * 2} />
+      <Walls wallHeightOffset={WALL_HEIGHT_OFFSET * 2} />
       <WallsDecoration isVR={isVR && isPresenting} />
       <group>
         <PcSetup
           ref={monitorHighlightRef}
           isTouch={isTouch}
           handleHotspotClick={handleHotspotClick}
+          isPresenting={isPresenting}
         />
         <PhoneOnTable
           ref={phoneHighlightRef}
           isTouch={isTouch}
           handleHotspotClick={handleHotspotClick}
+          isPresenting={isPresenting}
         />
         <PS5Setup
           ref={tvHighlightRef}
           isTouch={isTouch}
           handleHotspotClick={handleHotspotClick}
+          isPresenting={isPresenting}
         />
-        <Portrait position={[0.3, 2, -8.85]} onClick={handleHotspotClick} />
+        <Portrait position={[0.3, 2, -8.85]} onClick={handleHotspotClick} isPresenting={isPresenting} />
         <RoomFurnish />
       </group>
     </group>
