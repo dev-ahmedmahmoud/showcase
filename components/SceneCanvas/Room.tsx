@@ -1,13 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState, memo } from "react";
+import { Suspense, useRef } from "react";
 import {
-  AnimationMixer,
   Group,
   Camera,
   Mesh,
 } from "three";
-import { useGLTF, useTexture } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import Loader from "@/components/UI/Loader";

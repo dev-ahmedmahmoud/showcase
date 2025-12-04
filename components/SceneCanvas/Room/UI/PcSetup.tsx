@@ -3,12 +3,16 @@ import { useGLTF, useTexture, Text } from "@react-three/drei";
 import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import { useXR } from "@react-three/xr";
 import { links } from "@/components/utils/data";
+import GuideArrow from "./GuideArrow";
 
-function PcSetupHighlight() {
+function PcSetupHighlight({ onLinkClick }: { onLinkClick: () => void }) {
   const session = useXR((state) => state.session);
 
   const handleLinkClick = () => {
     if (session) {
+      if (onLinkClick) {
+        onLinkClick();
+      }
       session.end();
     }
     if (!Array.isArray(links.pc)) {
@@ -27,7 +31,7 @@ function PcSetupHighlight() {
       onPointerOver={() => (document.body.style.cursor = "pointer")}
       onPointerOut={() => (document.body.style.cursor = "auto")}
     >
-      <planeGeometry args={[1.5, 0.4]} />
+      <planeGeometry args={[2, 0.4]} />
       <meshBasicMaterial color="#ff0080" transparent opacity={0.5} />
       <Text
         position={[0, 0, 0.01]}
@@ -61,9 +65,15 @@ const PcSetup = forwardRef(function PcSetup(
   const pcChair = useGLTF("/models/pc_chair.glb");
   const pcDisplayTexture = useTexture("/pc_display.png");
 
-  const { focusedHotspot } = useScene();
+  const { focusedHotspot, tourStep, completeTourStep } = useScene();
 
   const [isMonitorHovered, setIsMonitorHovered] = useState(isTouch && !isPresenting);
+
+  const onLinkClick = () => {
+    if (isPresenting) {
+      completeTourStep("pc");
+    }
+  };
 
   return (
     <group ref={ref}>
@@ -105,6 +115,7 @@ const PcSetup = forwardRef(function PcSetup(
           onClick={(e) => {
             e.stopPropagation();
             handleHotspotClick("pc");
+            !isPresenting && completeTourStep("pc");
           }}
           onPointerOver={(e) => {
             e.stopPropagation();
@@ -188,19 +199,25 @@ const PcSetup = forwardRef(function PcSetup(
             color="#ffffff"
           />
 
+          {/* Guide Arrow */}
+          {tourStep === "pc" && (
+            <GuideArrow
+              animateY
+              animateX
+              animateZ={isPresenting}
+              position={[0.5, isPresenting ? 4 : 3.5, 1.2]}
+              rotation={[0, -Math.PI / 3, Math.PI / 1.5]}
+              color={"#ff0080"}
+            />
+          )}
+
           {/* VR UI - Visit Project Button */}
-          {isPresenting && <PcSetupHighlight />}
+          {isPresenting && <PcSetupHighlight onLinkClick={onLinkClick} />}
         </group>
       )}
 
       {/* Gaming Chair */}
-      {focusedHotspot !== "pc" && <primitive
-        object={pcChair.scene.clone()}
-        position={[-0.5, 0.5, -6.7]}
-        rotation={[0, -Math.PI / 2, 0]}
-        scale={0.007}
-        castShadow
-      />}
+
     </group>
   );
 });

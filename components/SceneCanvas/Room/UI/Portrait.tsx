@@ -1,27 +1,16 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
-import { Mesh, Group } from "three";
+import { Group, Mesh, Shape, Vector3 } from "three";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { Html, useGLTF, Text } from "@react-three/drei";
+import { Html, useGLTF, Text, Outlines, GradientTexture } from "@react-three/drei";
 import { useXR } from "@react-three/xr";
 import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import { useVideoTexture } from "../../../utils/useVideoTexture";
 import { isTouchDevice } from "../../../utils/helperFunc";
 import { links } from "@/components/utils/data";
-
-const applyHighlightOpacity = (group: Group | null, opacity: number) => {
-  if (!group) return;
-  group.traverse((object) => {
-    if (object instanceof Mesh) {
-      const material = object.material;
-      if (!Array.isArray(material) && material.transparent) {
-        material.opacity = opacity;
-      }
-    }
-  });
-};
+import GuideArrow from "./GuideArrow";
 
 // Project videos
 const PROJECT_VIDEOS = [
@@ -45,6 +34,110 @@ interface PortraitHighlightProps {
   totalSlides: number;
 }
 
+const applyHighlightOpacity = (group: Group | null, opacity: number) => {
+  if (!group) return;
+  group.traverse((object) => {
+    if (object instanceof Mesh) {
+      const material = object.material;
+      if (!Array.isArray(material) && material.transparent) {
+        material.opacity = opacity;
+      }
+    }
+  });
+};
+
+// Helper to create the octagon shape
+const createOctagonShape = (size: number) => {
+  const shape = new Shape();
+  const halfSize = size / 2;
+  const cut = size * 0.3; // 30% cut
+
+  shape.moveTo(-halfSize + cut, halfSize);
+  shape.lineTo(halfSize - cut, halfSize);
+  shape.lineTo(halfSize, halfSize - cut);
+  shape.lineTo(halfSize, -halfSize + cut);
+  shape.lineTo(halfSize - cut, -halfSize);
+  shape.lineTo(-halfSize + cut, -halfSize);
+  shape.lineTo(-halfSize, -halfSize + cut);
+  shape.lineTo(-halfSize, halfSize - cut);
+
+  return shape;
+};
+
+// Helper to create the visit button shape
+const createVisitButtonShape = (width: number, height: number) => {
+  const shape = new Shape();
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  const cutX = width * 0.1; // 10% width cut
+  const cutY = height * 0.2; // 20% height cut
+
+  shape.moveTo(-halfWidth + cutX, halfHeight);
+  shape.lineTo(halfWidth - cutX, halfHeight);
+  shape.lineTo(halfWidth, halfHeight - cutY);
+  shape.lineTo(halfWidth, -halfHeight + cutY);
+  shape.lineTo(halfWidth - cutX, -halfHeight);
+  shape.lineTo(-halfWidth + cutX, -halfHeight);
+  shape.lineTo(-halfWidth, -halfHeight + cutY);
+  shape.lineTo(-halfWidth, halfHeight - cutY);
+
+  return shape;
+};
+
+function VRButton({
+  position,
+  shape,
+  onClick,
+  colors,
+  outlineColor,
+  children,
+}: {
+  position: [number, number, number];
+  shape: Shape;
+  onClick: (e: ThreeEvent<MouseEvent>) => void;
+  colors: [string, string];
+  outlineColor: string;
+  children: React.ReactNode;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const meshRef = useRef<Mesh>(null);
+
+  useFrame((state, delta) => {
+    if (meshRef.current) {
+      const targetScale = hovered ? 1.1 : 1;
+      meshRef.current.scale.lerp(new Vector3(targetScale, targetScale, 1), delta * 10);
+    }
+  });
+
+  return (
+    <mesh
+      ref={meshRef}
+      position={position}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(e);
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        setHovered(false);
+        document.body.style.cursor = "auto";
+      }}
+    >
+      <shapeGeometry args={[shape]} />
+      <meshBasicMaterial transparent opacity={hovered ? 0.9 : 0.6}>
+        <GradientTexture stops={[0, 1]} colors={colors} />
+      </meshBasicMaterial>
+      <Outlines thickness={0.005} color={outlineColor} />
+      {children}
+    </mesh>
+  );
+}
+
 function PortraitHighlight({
   onPrevious,
   onNext,
@@ -54,43 +147,39 @@ function PortraitHighlight({
 }: PortraitHighlightProps) {
   const session = useXR(state => state.session);
 
+  const octagonShape = useMemo(() => createOctagonShape(0.2), []);
+  const visitShape = useMemo(() => createVisitButtonShape(0.8, 0.2), []);
+  const seeAllShape = useMemo(() => createVisitButtonShape(1.2, 0.2), []);
+
   return (
     <group position={[0, -0.6, 0.2]}>
       {/* Previous Button */}
-      <mesh
-        position={[-0.6, 0, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onPrevious(e);
-        }}
-        onPointerOver={() => (document.body.style.cursor = "pointer")}
-        onPointerOut={() => (document.body.style.cursor = "auto")}
+      <VRButton
+        position={[-1.2, 0, 0]}
+        shape={octagonShape}
+        onClick={onPrevious}
+        colors={["#06b6d4", "#a855f7"]}
+        outlineColor="#06b6d4"
       >
-        <planeGeometry args={[0.2, 0.2]} />
-        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
         <Text
           position={[0, 0, 0.01]}
           fontSize={0.1}
-          color="white"
+          color="#06b6d4"
           anchorX="center"
           anchorY="middle"
         >
-          {"<"}
+          {"‹"}
         </Text>
-      </mesh>
+      </VRButton>
 
       {/* Visit Project Button */}
-      <mesh
-        position={[0, 0, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onLinkClick("project", session);
-        }}
-        onPointerOver={() => (document.body.style.cursor = "pointer")}
-        onPointerOut={() => (document.body.style.cursor = "auto")}
+      <VRButton
+        position={[-0.45, 0, 0]}
+        shape={visitShape}
+        onClick={(e) => onLinkClick("project", session)}
+        colors={["#06b6d4", "#a855f7"]}
+        outlineColor="#06b6d4"
       >
-        <planeGeometry args={[0.8, 0.2]} />
-        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
         <Text
           position={[0, 0, 0.01]}
           fontSize={0.08}
@@ -98,22 +187,18 @@ function PortraitHighlight({
           anchorX="center"
           anchorY="middle"
         >
-          PROJECT
+          VISIT PROJECT
         </Text>
-      </mesh>
+      </VRButton>
 
-      {/* Visit Project Github Button */}
-      <mesh
-        position={[1, 0, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onLinkClick("github", session);
-        }}
-        onPointerOver={() => (document.body.style.cursor = "pointer")}
-        onPointerOut={() => (document.body.style.cursor = "auto")}
+      {/* Visit Codebase Button */}
+      <VRButton
+        position={[0.45, 0, 0]}
+        shape={visitShape}
+        onClick={(e) => onLinkClick("github", session)}
+        colors={["#06b6d4", "#a855f7"]}
+        outlineColor="#a855f7"
       >
-        <planeGeometry args={[0.8, 0.2]} />
-        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
         <Text
           position={[0, 0, 0.01]}
           fontSize={0.08}
@@ -121,62 +206,55 @@ function PortraitHighlight({
           anchorX="center"
           anchorY="middle"
         >
-          GITHUB
+          VISIT CODEBASE
         </Text>
-      </mesh>
+      </VRButton>
 
       {/* Next Button */}
-      <mesh
-        position={[1.6, 0, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onNext(e);
-        }}
-        onPointerOver={() => (document.body.style.cursor = "pointer")}
-        onPointerOut={() => (document.body.style.cursor = "auto")}
+      <VRButton
+        position={[1.2, 0, 0]}
+        shape={octagonShape}
+        onClick={onNext}
+        colors={["#a855f7", "#06b6d4"]}
+        outlineColor="#a855f7"
       >
-        <planeGeometry args={[0.2, 0.2]} />
-        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
         <Text
           position={[0, 0, 0.01]}
           fontSize={0.1}
-          color="white"
+          color="#a855f7"
           anchorX="center"
           anchorY="middle"
         >
-          {">"}
+          {"›"}
         </Text>
-      </mesh>
+      </VRButton>
 
       {/* Progress Indicator */}
-      <group position={[0, -0.2, 0]}>
+      <group position={[0, -0.25, 0]}>
         {Array.from({ length: totalSlides }).map((_, index) => (
           <mesh
             key={index}
-            position={[(index - (totalSlides - 1) / 2) * 0.1, 0, 0]}
+            position={[(index - (totalSlides - 1) / 2) * 0.15, 0, 0]}
           >
-            <circleGeometry args={[0.02, 32]} />
+            <planeGeometry args={[index === currentIndex ? 0.12 : 0.06, 0.02]} />
             <meshBasicMaterial
-              color={index === currentIndex ? "#00ffff" : "#0040ff"}
               transparent
               opacity={0.8}
-            />
+            >
+              <GradientTexture stops={[0, 1]} colors={index === currentIndex ? ["#06b6d4", "#a855f7"] : ["#06b6d4", "#06b6d4"]} />
+            </meshBasicMaterial>
           </mesh>
         ))}
       </group>
 
-      { /* Visit all projects button */}
-      <mesh
-        position={[0, -0.4, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onLinkClick("all projects", session);
-        }}
-        onPointerOver={() => (document.body.style.cursor = "pointer")}
-        onPointerOut={() => (document.body.style.cursor = "auto")}
+      {/* See All Projects Button */}
+      <VRButton
+        position={[0, -0.45, 0]}
+        shape={seeAllShape}
+        onClick={(e) => onLinkClick("all projects", session)}
+        colors={["#06b6d4", "#a855f7"]}
+        outlineColor="#06b6d4"
       >
-        <planeGeometry args={[2, 0.2]} />
-        <meshBasicMaterial color="#0040ff" transparent opacity={0.5} />
         <Text
           position={[0, 0, 0.01]}
           fontSize={0.08}
@@ -186,7 +264,7 @@ function PortraitHighlight({
         >
           SEE ALL PROJECTS
         </Text>
-      </mesh>
+      </VRButton>
     </group>
   );
 }
@@ -203,9 +281,10 @@ export default function Portrait({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const autoSlideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isTouch = isTouchDevice();
+
   const [isHovered, setIsHovered] = useState(isTouch && !isPresenting);
   const highlightRef = useRef<Group>(null);
-  const { focusedHotspot } = useScene();
+  const { focusedHotspot, tourStep, completeTourStep } = useScene();
 
   const isActive = focusedHotspot === "portrait";
   const currentSlide = PROJECT_VIDEOS[currentIndex];
@@ -213,6 +292,7 @@ export default function Portrait({
   const handlePortraitClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     onClick?.("portrait");
+    completeTourStep("portrait");
   };
 
   const { texture: videoTexture, video } = useVideoTexture(currentSlide);
@@ -282,15 +362,24 @@ export default function Portrait({
     setCurrentIndex(
       (prev) => (prev - 1 + PROJECT_VIDEOS.length) % PROJECT_VIDEOS.length
     );
+    if (isPresenting) {
+      completeTourStep("portrait");
+    }
   };
 
   const handleNext = (e: ReactMouseEvent<HTMLButtonElement> | ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     setCurrentIndex((prev) => (prev + 1) % PROJECT_VIDEOS.length);
+    if (isPresenting) {
+      completeTourStep("portrait");
+    }
   };
 
   const handleLinkClick = (type: "project" | "github" | "all projects", session?: XRSession) => {
     if (session) {
+      if (isPresenting) {
+        completeTourStep("portrait");
+      }
       session.end();
     }
     if (type === "all projects") {
@@ -373,12 +462,28 @@ export default function Portrait({
         </group>
       )}
 
+      {/* Guide Arrow */}
+      {tourStep === "portrait" && (
+        <GuideArrow
+          animateY
+          animateZ={!isPresenting}
+          animateX={isPresenting}
+          position={[isPresenting ? 1.5 : 0, isPresenting ? -0.2 : 1, isPresenting ? 0.2 : 0.5]}
+          rotation={[
+            isPresenting ? 0 : -Math.PI / 10,
+            isPresenting ? 0 : -Math.PI / 2,
+            isPresenting ? -Math.PI / 0.75 : Math.PI / 2,
+          ]}
+          color="#0040ff"
+        />
+      )}
+
       {/* Video Display Screen */}
       {videoTexture && (
         <mesh
           ref={meshRef}
           position={[0, 0.1, 0.03]}
-          onClick={handlePortraitClick}
+          onClick={isPresenting ? undefined : handlePortraitClick}
           onPointerOver={(e) => {
             e.stopPropagation();
             if (!isTouch && !isPresenting) {

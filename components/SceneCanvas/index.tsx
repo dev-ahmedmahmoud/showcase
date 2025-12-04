@@ -26,17 +26,16 @@ interface SceneContentProps {
   cameraRef: React.RefObject<Camera | null>;
   toggleControlsRef: React.RefObject<((enabled: boolean) => void) | null>;
   isVR: boolean;
-  isPresenting: boolean;
 }
 
-const SceneContent = forwardRef(function SceneContent(
-  { cameraRef, toggleControlsRef, isVR, isPresenting }: SceneContentProps,
-  ref
-) {
+const SceneContent = ({ cameraRef, toggleControlsRef, isVR }: SceneContentProps) => {
   const { targetPosition } = useScene();
   const [isTouch] = useState<boolean | undefined>(() => isTouchDevice());
-  const { camera } = useThree();
+  const { camera, gl } = useThree();
+  const isPresenting = !!gl.xr.isPresenting;
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  const worldRef = useRef<Group>(null);
+
 
   const toggleControls = useCallback((enable: boolean) => {
     if (controlsRef.current) {
@@ -49,6 +48,15 @@ const SceneContent = forwardRef(function SceneContent(
     }
   }, []);
 
+  useEffect(() => {
+    if (isPresenting && worldRef.current) {
+      // Example: spawn user at (5, 0, -3)
+      const spawn = { x: 0.5, y: 0, z: -4 };
+      // Move the world so the user's head (0,0,0) matches the spawn
+      worldRef.current.position.set(-spawn.x, -spawn.y, -spawn.z)
+    }
+  }, [isPresenting, cameraRef.current]);
+
   // Forward camera reference to parent
   useEffect(() => {
     if (cameraRef) {
@@ -58,7 +66,7 @@ const SceneContent = forwardRef(function SceneContent(
   }, [camera, cameraRef, toggleControls, toggleControlsRef]);
 
   return (
-    <group ref={ref}>
+    <group ref={worldRef}>
       {/* Camera control and Controls only for non-VR */}
       {!isPresenting && (
         <CameraController
@@ -99,7 +107,7 @@ const SceneContent = forwardRef(function SceneContent(
       {process.env.NODE_ENV === "development" && <FPSMeter enabled />}
     </group>
   );
-});
+};
 
 interface SceneCanvasProps {
   cameraRef: React.RefObject<Camera | null>;
@@ -110,10 +118,7 @@ export default function SceneCanvas({
   cameraRef,
   toggleControlsRef,
 }: SceneCanvasProps) {
-  const [isPresenting, setIsPresenting] = useState(false);
   const [isVR, setIsVR] = useState(false);
-  const worldRef = useRef<Group>(null);
-
   useEffect(() => {
     (async () => {
       if (await isVRHeadsetBrowser()) {
@@ -122,20 +127,6 @@ export default function SceneCanvas({
       }
     })();
   }, []);
-
-  useEffect(() => {
-    if (isPresenting && worldRef.current) {
-      // Example: spawn user at (5, 0, -3)
-      const spawn = { x: 0.5, y: 0, z: -4 };
-      // Move the world so the user's head (0,0,0) matches the spawn
-      worldRef.current.position.set(-spawn.x, -spawn.y, -spawn.z)
-    }
-  }, [isPresenting, cameraRef.current]);
-
-  const handleEnterVR = () => {
-    xrStore?.enterVR();
-    setIsPresenting(true);
-  };
 
   // VR-specific renderer optimizations
   // const onCreated = (state: any) => {
@@ -152,27 +143,6 @@ export default function SceneCanvas({
 
   return (
     <div className="relative h-screen w-screen">
-      {/* Custom Enter VR button for VR-capable browsers and WebXR support */}
-      {isVR && xrStore && !isPresenting && (
-        <button
-          style={{
-            position: "absolute",
-            zIndex: 10,
-            top: 24,
-            right: 24,
-            padding: "12px 24px",
-            background: "#111",
-            color: "#fff",
-            borderRadius: "8px",
-            fontSize: "1.2rem",
-            border: "none",
-            cursor: "pointer",
-          }}
-          onClick={handleEnterVR}
-        >
-          Enter VR
-        </button>
-      )}
       <Canvas
         shadows
         gl={{
@@ -186,11 +156,9 @@ export default function SceneCanvas({
         {isVR ? (
           <XR store={xrStore!}>
             <SceneContent
-              ref={worldRef}
               cameraRef={cameraRef}
               toggleControlsRef={toggleControlsRef}
               isVR={true}
-              isPresenting={isPresenting}
             />
           </XR>
         ) : (
@@ -198,7 +166,6 @@ export default function SceneCanvas({
             cameraRef={cameraRef}
             toggleControlsRef={toggleControlsRef}
             isVR={false}
-            isPresenting={false}
           />
         )}
       </Canvas>

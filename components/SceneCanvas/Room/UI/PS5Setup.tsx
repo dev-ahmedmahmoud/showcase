@@ -1,8 +1,9 @@
 import { forwardRef, useState } from "react";
-import { HotspotId } from "@/components/utils/SceneContext";
+import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import { useGLTF, useTexture, Text } from "@react-three/drei";
 import { useXR } from "@react-three/xr";
 import { links } from "@/components/utils/data";
+import GuideArrow from "./GuideArrow";
 
 function AnimatedSpeaker({
   position,
@@ -22,11 +23,14 @@ function AnimatedSpeaker({
   );
 }
 
-function PS5SetupHighlight() {
+function PS5SetupHighlight({ onLinkClick }: { onLinkClick?: () => void }) {
   const session = useXR((state) => state.session);
 
   const handleLinkClick = () => {
     if (session) {
+      if (onLinkClick) {
+        onLinkClick();
+      }
       session.end();
     }
 
@@ -46,7 +50,7 @@ function PS5SetupHighlight() {
       onPointerOver={() => (document.body.style.cursor = "pointer")}
       onPointerOut={() => (document.body.style.cursor = "auto")}
     >
-      <planeGeometry args={[1.5, 0.4]} />
+      <planeGeometry args={[2, 0.4]} />
       <meshBasicMaterial color="#9932cc" transparent opacity={0.5} />
       <Text
         position={[0, 0, 0.01]}
@@ -83,6 +87,11 @@ const Tv = forwardRef(function Tv(
   const tvScreenTexture = useTexture("/tv.png");
 
   const [isTvHovered, setIsTvHovered] = useState(isTouch);
+  const { completeTourStep, tourStep } = useScene();
+
+  const onLinkClick = () => {
+    if (isPresenting) completeTourStep("ps5");
+  };
 
   return (
     <group
@@ -92,6 +101,7 @@ const Tv = forwardRef(function Tv(
       onClick={(e) => {
         e.stopPropagation();
         handleHotspotClick("ps5");
+        if (!isPresenting) completeTourStep("ps5");
       }}
       onPointerOver={(e) => {
         e.stopPropagation();
@@ -165,8 +175,24 @@ const Tv = forwardRef(function Tv(
         </group>
       )}
 
+      {/* Guide Arrow */}
+      {tourStep === "ps5" && (
+        <GuideArrow
+          animateNegativeZ
+          animateY
+          animateX={isPresenting}
+          position={[
+            isPresenting ? 1.4 : 0,
+            isPresenting ? 1.9 : 1.2,
+            isPresenting ? -0.5 : -0.7,
+          ]}
+          rotation={isPresenting ? [0, 0, Math.PI / 1.5] : [Math.PI / 1.5, Math.PI / 2, 0]}
+          color="#9932cc"
+        />
+      )}
+
       {/* VR UI - Visit Project Button */}
-      {isPresenting && <PS5SetupHighlight />}
+      {isPresenting && <PS5SetupHighlight onLinkClick={onLinkClick} />}
     </group>
   );
 });

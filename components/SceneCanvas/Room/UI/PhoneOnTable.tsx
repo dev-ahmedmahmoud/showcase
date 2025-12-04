@@ -2,15 +2,19 @@ import { forwardRef, useState } from "react";
 import { useVideoTexture } from "@/components/utils/useVideoTexture";
 import { useGLTF, Text } from "@react-three/drei";
 import { ThreeEvent } from "@react-three/fiber";
-import { HotspotId } from "@/components/utils/SceneContext";
+import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import { useXR } from "@react-three/xr";
 import { links } from "@/components/utils/data";
+import GuideArrow from "./GuideArrow";
 
-function PhoneOnTableHighlight() {
+function PhoneOnTableHighlight({ onLinkClick }: { onLinkClick?: () => void }) {
   const session = useXR((state) => state.session);
 
   const handleLinkClick = () => {
     if (session) {
+      if (onLinkClick) {
+        onLinkClick();
+      }
       session.end();
     }
 
@@ -62,6 +66,11 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
   const { texture: videoTexture } = useVideoTexture("/phone.mp4");
 
   const [isPhoneHovered, setIsPhoneHovered] = useState(isTouch && !isPresenting);
+  const { completeTourStep, tourStep } = useScene();
+
+  const onLinkClick = () => {
+    if (isPresenting) completeTourStep("phone");
+  };
 
   return (
     <group>
@@ -80,6 +89,7 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
         onClick={(e: ThreeEvent<MouseEvent>) => {
           e.stopPropagation();
           handleHotspotClick("phone");
+          !isPresenting && completeTourStep("phone");
         }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation();
@@ -160,8 +170,19 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
           color="#9932cc"
         />
 
+        {/* Guide Arrow */}
+        {tourStep === "phone" && (
+          <GuideArrow
+            animateZ
+            animateNegativeY
+            position={[0, -0.3, 0.4]}
+            rotation={[-Math.PI / 4, -Math.PI / 2, 0]}
+            color="#9932cc"
+          />
+        )}
+
         {/* VR UI - Visit Project Button */}
-        {isPresenting && <PhoneOnTableHighlight />}
+        {isPresenting && <PhoneOnTableHighlight onLinkClick={onLinkClick} />}
       </group>
     </group>
   );
