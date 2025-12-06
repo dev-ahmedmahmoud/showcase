@@ -49,13 +49,15 @@ const SceneContent = ({ cameraRef, toggleControlsRef, isVR }: SceneContentProps)
   }, []);
 
   useEffect(() => {
-    if (isPresenting && worldRef.current) {
-      // Example: spawn user at (5, 0, -3)
-      const spawn = { x: 0.5, y: 0, z: -4 };
-      // Move the world so the user's head (0,0,0) matches the spawn
-      worldRef.current.position.set(-spawn.x, -spawn.y, -spawn.z)
+    if (worldRef.current) {
+      if (!isPresenting) {
+        worldRef.current.position.set(0, 0, 0);
+      } else {
+        const spawn = { x: 0.5, y: 0, z: -3 };
+        worldRef.current.position.set(-spawn.x, -spawn.y, -spawn.z)
+      }
     }
-  }, [isPresenting, cameraRef.current]);
+  }, [isPresenting]);
 
   // Forward camera reference to parent
   useEffect(() => {
@@ -94,10 +96,10 @@ const SceneContent = ({ cameraRef, toggleControlsRef, isVR }: SceneContentProps)
       {/* <PathDebugger /> */}
 
       {/* Controls - rotate enabled on mobile/tablet only, not in VR */}
-      {!isPresenting && (
+      {!isPresenting && !isVR && (
         <Controls
           ref={controlsRef}
-          enabled={isVR && isPresenting ? false : isTouch}
+          enabled={isTouch}
         />
       )}
 
