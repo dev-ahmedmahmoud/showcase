@@ -11,6 +11,8 @@ export default function Loader() {
   const progressBarRef = useRef<HTMLDivElement | null>(null);
   const percentRef = useRef<HTMLDivElement | null>(null);
   const messageRef = useRef<HTMLDivElement | null>(null);
+  const titleRef = useRef<HTMLDivElement | null>(null);
+  const isFirstTimeRef = useRef<boolean>(false);
 
   // Progress simulation with logarithmic curve
   useEffect(() => {
@@ -42,6 +44,11 @@ export default function Loader() {
 
   // Render loader to document.body via createRoot (static UI, only update progress bar/message directly)
   useEffect(() => {
+    isFirstTimeRef.current = !localStorage.getItem("portfolio_visited");
+    if (isFirstTimeRef.current) {
+      localStorage.setItem("portfolio_visited", "1");
+    }
+
     if (!containerRef.current) {
       containerRef.current = document.createElement("div");
       document.body.appendChild(containerRef.current);
@@ -49,7 +56,10 @@ export default function Loader() {
       rootRef.current.render(
         <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black">
           <div className="flex flex-col items-center justify-center gap-6">
-            <div className="text-4xl font-bold text-white mb-4 text-center">
+            <div
+              ref={titleRef}
+              className="text-4xl font-bold text-white mb-4 text-center"
+            >
               Loading Portfolio Experience
             </div>
             <div className="w-80 h-2 overflow-hidden rounded-full bg-white/10 border border-cyan-500/30">
@@ -99,6 +109,10 @@ export default function Loader() {
     }
     if (messageRef.current) {
       messageRef.current.textContent = getLoadingMessage(progress);
+    }
+    if (titleRef.current && isFirstTimeRef.current && progress > 90) {
+      titleRef.current.textContent =
+        "First time? Caching assets might take a bit more time";
     }
   }, [progress]);
 
