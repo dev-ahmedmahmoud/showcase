@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Vector3 } from "three";
 import { useScene } from "@/components/utils/SceneContext";
 import { SAFETY_MARGIN } from "@/components/utils/pathfinding";
@@ -72,25 +72,21 @@ const WALLS = [
 
 export default function PathDebugger() {
   const { targetPosition, currentPath } = useScene();
-  const [pathInfo, setPathInfo] = useState<{
+  const pathInfo = useMemo<{
     startPoint: Vector3;
     endPoint: Vector3;
     waypoints: Vector3[];
-  } | null>(null);
+  } | null>(() => {
+    if (!targetPosition || !currentPath) return null;
 
-  useEffect(() => {
-    if (targetPosition && currentPath) {
-      const allPoints = currentPath.getAllPoints();
-      const waypoints = allPoints.slice(1, -1).map((p) => p.position); // Exclude start and end
+    const allPoints = currentPath.getAllPoints();
+    const waypoints = allPoints.slice(1, -1).map((p) => p.position); // Exclude start and end
 
-      setPathInfo({
-        startPoint: allPoints[0].position,
-        endPoint: allPoints[allPoints.length - 1].position,
-        waypoints: waypoints,
-      });
-    } else {
-      setPathInfo(null);
-    }
+    return {
+      startPoint: allPoints[0].position,
+      endPoint: allPoints[allPoints.length - 1].position,
+      waypoints: waypoints,
+    };
   }, [targetPosition, currentPath]);
 
   return (

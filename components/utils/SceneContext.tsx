@@ -34,6 +34,8 @@ export function SceneProvider({ children }: { children: ReactNode }) {
     // Initialize tour step from localStorage
     const visitedSteps = JSON.parse(localStorage.getItem("visitedHotspots") || "[]");
     const nextStep = TOUR_ORDER.find((step) => !visitedSteps.includes(step));
+    // localStorage only exists on the client, so this cannot be a useState initializer (SSR mismatch)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTourStep(nextStep || null);
   }, []);
 

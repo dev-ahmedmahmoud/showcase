@@ -21,7 +21,8 @@ before acting. No false alarms, no over-engineering.
 | 5 | Code fixes | DONE: C2 shadows, C3 video, C4 clone/preload/pc_chair, C6 lint, C7 docs |
 | 6 | Asset optimization (GLB) | DONE (C5) |
 | 7 | Re-measure + visual compare + full E2E vs original | DONE (§6: 43/43, original 41/43) |
-| 8 | Nothing committed yet — all changes are in the working tree | awaiting owner review |
+| 8 | C1-C7 committed on branch `perf/migration-2026-10` (`da89aaf`) | DONE (not pushed, not merged) |
+| 9 | Session 2 (owner: "full authority, don't compromise quality"): C8 lint, C9 visually-lossless mesh simplification, C10 optimize script in repo | DONE, E2E 43/43, committed on same branch |
 
 ---
 
@@ -400,6 +401,61 @@ touch unused/dead code — owner's call):
   `useGLTF.preload`, why inline clone is wrong, compress new GLBs); "Video Texture Pattern" rewritten to use
   `useVideoTexture` + conditional mesh, and why `<video>` must not be created during render.
 
+### C8 — Remaining lint errors (session 2; lint now exits 0, 1 intentional warning)
+- `components/SceneCanvas/PathDebugger.tsx` (debug component, not mounted): `useState` + `useEffect` that only derived
+  `pathInfo` from `targetPosition`/`currentPath` → `useMemo` with the same deps (same value, one render less).
+  Import `{ useEffect, useState }` → `{ useMemo }`.
+  ```diff
+  -  const [pathInfo, setPathInfo] = useState<{...} | null>(null);
+  -  useEffect(() => { if (targetPosition && currentPath) { ...; setPathInfo({...}); } else { setPathInfo(null); } }, [targetPosition, currentPath]);
+  +  const pathInfo = useMemo<{...} | null>(() => { if (!targetPosition || !currentPath) return null; ...; return {...}; }, [targetPosition, currentPath]);
+  ```
+- `components/utils/SceneContext.tsx:37`: kept the effect (page.tsx is a client component but is still prerendered on
+  the server where `localStorage` does not exist; a `useState` initializer would hydrate-mismatch). Added 2 lines:
+  ```diff
+  +    // localStorage only exists on the client, so this cannot be a useState initializer (SSR mismatch)
+  +    // eslint-disable-next-line react-hooks/set-state-in-effect
+       setTourStep(nextStep || null);
+  ```
+- `inspect-fbx.js` deleted (`git rm`): dead script, read `public/models/character/mesh.fbx` which does not exist,
+  referenced nowhere (grep), was 2 of the 4 lint errors.
+- Left: `Avatar.tsx:109` exhaustive-deps **warning** (adding `switchAnimation` would re-run the walk effect every render).
+- `npx tsc --noEmit` exit 0 (covers the unmounted PathDebugger too).
+
+### C9 — Visually-lossless mesh simplification (session 2) — 24 GLBs re-generated from the ORIGINAL files
+Problem (§7.1 before): 2.87 M triangles rendered on desktop. Pipeline = C5 + one extra step before `prune`/`meshopt`.
+1. First tried gltf-transform `simplify()` (error 1e-4): −34 % tris, BUT its source
+   (`@gltf-transform/functions/dist/index.js:5316`) calls `simplifier.simplify(indices, positions, ...)` — **positions
+   only**. Turntable test showed a visible shading change on the bed blanket (normals bent) → **rejected**.
+2. Used `MeshoptSimplifier.simplifyWithAttributes` instead: NORMAL, TANGENT, COLOR_0 (3 comps) and every TEXCOORD_n
+   (2 comps) with weight 1 each, target_error 1e-4 (relative to mesh extent), ratio 0 (only stops on error), after a
+   lossless `weld` (bitwise-identical vertices only). Morph-target prims and skinned files skipped (character.glb
+   untouched, byte-identical).
+Verification:
+- Primitive (draw-call) count identical for every file.
+- Turntable (scratchpad `tools/turntable.mjs`): each model framed to FILL a 1024² image (far closer than any desktop
+  view; approximates VR close-up), 10 views, IBL + directional light, A = committed C5 file, B = C9 file. Self-test A vs A
+  = 0 diff. Worst file controller3: 0.052 % of pixels differ by >24/255; inspected at 3× zoom: sub-pixel edge shifts of
+  texture details, not distinguishable side by side. (Position-only variant: bed 0.66 %, couch 1.36 % with visible
+  blotch.)
+- In-room screenshots vs previous final: only animated things differ (ceiling LED cycle, hexagons, avatar idle, arrow,
+  video); static furniture diff-free.
+- Full E2E 43/43 (`e2e/simp`).
+Result: file-level 2.09 M → 1.78 M tris (−15 %); **rendered desktop 2,872,182 → 2,474,114 (−14 %), touch
+2,576,020 → 2,214,753 (−14 %)**; GLBs gzip 23.01 → 22.80 MB; raw 29.5 → 28.0 MB (excl. pc_chair). Biggest wins:
+headset2 −45 %, tv_unit −25 %, pc −17 %, controller3 −16 % (rendered twice), controller1 −18 % (twice).
+Load time: no claim — A/B (C5 vs C9 models, interleaved) under load average 21-26 gave 8.1/9.1 s vs 7.7/11.2 s, i.e. noise.
+(VR-path scenario showed 14 s in this session for BOTH model sets because of machine load; it was 4.7 s in session 1.)
+
+### C10 — Asset pipeline in the repo (session 2)
+Scratchpad tools vanish with the session, so the pipeline that produced `public/models` is now `scripts/optimize-models.mjs`
+(`npm run optimize-models -- <file.glb | dir> [outDir=public/models]`). DevDependencies added (dev only, latest):
+`@gltf-transform/core|extensions|functions ^4.5.1`, `meshoptimizer ^1.3.0`, `sharp ^0.35.5` (was only an optional dep of next).
+Guards: skips files that already use `EXT_meshopt_compression` (prevents re-compressing WebP) and skinned files.
+**Proof:** running it on the original GLBs (from 27913b7) produces output **byte-identical** to all 28 committed files.
+Docs: README "Phase 3" item 1 and `.github/copilot-instructions.md` (performance tip + "New GLBs") now point to the script.
+`npm audit --omit=dev`: 0 vulnerabilities.
+
 ## 5. E2E test suite (scratchpad `tools/e2e.mjs`)
 Real headless Chrome (GPU, ANGLE Metal), `next start` prod build, one browser, one context per scenario, closed after.
 Finds 3D hotspots by projecting world positions through the live camera (captured via three's `__THREE_DEVTOOLS__`
@@ -450,6 +506,7 @@ pass on both → **no functional regression**.
 | JS heap after interaction scenario (6 samples each) | 200-222 MB | 105-116 MB |
 | scene objects re-created by 3 hover toggles on the monitor | **857** | **0** |
 | scene contents when loader disappears | 98 objects (room appears ~3 s later) | 953-955 (full room) |
+| rendered triangles desktop / touch (after C9, session 2) | 2.87 M / 2.58 M | **2.47 M / 2.21 M** |
 
 Notes on honesty / limits:
 - "Room appears ~3 s after loader" in the original: observed with `tools/scenecount.mjs` (objects in scene sampled
@@ -462,24 +519,29 @@ Notes on honesty / limits:
   creation, non-presenting rendering, hotspot click) was tested with UA + `isSessionSupported` stub only.
 
 ## 7. Open items / optional next steps (NOT done — need owner decision; each would trade some fidelity)
-1. Triangle budget: ~2.87 M triangles rendered on desktop (2.58 M on touch). Largest: pc.glb 378 k,
+1. [PARTLY DONE in C9: 2.47 M now, losslessly. Further cuts need a visible-quality trade-off → not done.]
+   Triangle budget: ~2.87 M triangles rendered on desktop (2.58 M on touch). Largest: pc.glb 378 k,
    controller3.glb 352 k (rendered twice at scale 0.006 on the pegboard → ~700 k tris for two tiny objects),
    ps5 162 k, purifier 167 k, headset2 146 k, headset1 112 k, controller1 112 k (×2), bed 106 k.
    Mesh simplification (meshoptimizer, small error) on these would help Quest/mobile frame rate; not done because
    it changes geometry and could not be validated on target devices here.
 2. Remaining VRAM ~606 MB is mostly many 1024² textures on small props (controller2: 18 textures ≈ 100 MB;
    desk: 16 ≈ 90 MB). Downscaling small props to 512 would roughly halve VRAM; visual cost on tiny props is
-   likely invisible but it is a quality trade-off → owner's call. KTX2/Basis would cut VRAM most but needs a
+   likely invisible but it is a quality trade-off → owner's call. [Session 2: NOT done — the turntable close-ups show
+   these props filling the screen are sharp at 1024; in VR the user can get that close, so 512 would be visible.] KTX2/Basis would cut VRAM most but needs a
    transcoder and is lossy.
 3. `pc_display.png` (5042×1143, ~30 MB VRAM) kept full-res on purpose (close-up hero screen).
-4. Rect-area lights without `RectAreaLightUniformsLib.init()` (see "Noted" above).
+4. Rect-area lights without `RectAreaLightUniformsLib.init()` (see "Noted" above). [Session 2: still left — calling
+   init would change the lighting the scene was art-directed under.]
 5. `THREE.Clock` deprecation warning comes from @react-three/fiber 9.8.1 itself; goes away when fiber updates.
 6. Unused files still in repo: `public/models/pc_chair.glb` (now unreferenced), `hands.fbx`,
    `character_mixamo_fixed.fbx`, `public/textures/ceiling/*`, `phone.png`, default svgs, `inspect-fbx.js`,
    `three-pathfinding` mention in copilot-instructions. No runtime cost; delete if desired.
+   [Session 2: `inspect-fbx.js` deleted (C8). Assets kept — they are the owner's source files, zero runtime cost.]
 7. Dev-only audit: 5 high in eslint-config-next's dependency chain (braces) — waits on upstream.
 
 ## 8. How to reproduce the measurements
+Asset pipeline is in the repo: `npm run optimize-models` (C10). The measurement tools below are not.
 Scratchpad tools (session-local; copy them into the repo if you want to keep them):
 `tools/summary.mjs` (GLB stats), `tools/optimize.mjs <in> <out> 2048` (asset pipeline), `tools/rendered.mjs`
 (geometry integrity), `tools/measure.mjs <url> <shot> [Mbps]`, `tools/profile.mjs` (request timeline + long tasks),
@@ -487,6 +549,7 @@ Scratchpad tools (session-local; copy them into the repo if you want to keep the
 `tools/imgdiff.mjs`. All need `npx next start` running; run one server + one browser at a time.
 
 ## Appendix A — full diff of source/doc changes (vs HEAD 27913b7; excludes package-lock.json and binary GLBs)
+(Covers C1-C7 = commit `da89aaf`. C8-C10 diffs are inline above and in the following commit on the same branch.)
 
 New file `components/utils/Model.tsx` is shown in full in C4. GLB changes: see C5 (27 binary files under `public/models`, all except `character.glb`).
 

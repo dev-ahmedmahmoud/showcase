@@ -160,7 +160,7 @@ npm run lint     # ESLint v9 flat config
 **Causes & Solutions**:
 - Too many point lights (>8) → Use `rectAreaLight` or baked lightmaps
 - No frustum culling → Enable via `<OrbitControls />` or camera position checks
-- Heavy models not compressed → Run Draco compression in Blender
+- Heavy models not compressed → `npm run optimize-models -- <file.glb>` (writes to public/models)
 - Target: 72fps (Quest 2) or 90fps (Quest 3)
 
 ## Asset Loading Patterns
@@ -191,8 +191,9 @@ the whole model each time.
 **Why `preload`**: with React 19 a suspending component stops its siblings from rendering, so without
 module-level `useGLTF.preload` / `useTexture.preload` the assets download one component at a time.
 
-**New GLBs**: compress before committing (meshopt + WebP textures, max 2048px) — drei's `useGLTF` decodes
-`EXT_meshopt_compression` and `EXT_texture_webp` out of the box. See MIGRATION_NOTES.md (C5).
+**New GLBs**: run `npm run optimize-models -- <file.glb>` before committing (meshopt + WebP textures, max 2048px,
+attribute-aware simplification at 0.01 % error) — drei's `useGLTF` decodes
+`EXT_meshopt_compression` and `EXT_texture_webp` out of the box. See MIGRATION_NOTES.md (C5, C9).
 
 ### Loading Textures
 ```tsx

@@ -91,7 +91,7 @@ showcase/
 3. Add more detail to gaming setup
 
 ### Phase 3: Optimize Performance
-1. Use Draco compression for large models
+1. Run `npm run optimize-models -- <file.glb>` on new models (meshopt + WebP, visually lossless simplification)
 2. Bake lightmaps for static geometry
 3. Add LODs (Level of Detail) for complex meshes
 4. Target: 60fps Desktop, 30fps Mobile, 72-90fps VR
