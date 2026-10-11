@@ -5,7 +5,6 @@ import { createRoot, type Root } from "react-dom/client";
 
 export default function Loader() {
   const [progress, setProgress] = useState(0);
-  const mountTimeRef = useRef<number>(Date.now());
   const rootRef = useRef<Root | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const progressBarRef = useRef<HTMLDivElement | null>(null);
@@ -16,7 +15,7 @@ export default function Loader() {
 
   // Progress simulation with logarithmic curve
   useEffect(() => {
-    const startTime = mountTimeRef.current;
+    const startTime = Date.now();
     const updateProgress = () => {
       const elapsed = Date.now() - startTime;
       let newProgress;

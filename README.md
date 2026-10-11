@@ -14,8 +14,8 @@ An interactive 3D portfolio showcasing frontend development and VR skills in a s
 
 ## Tech Stack
 
-- **Framework**: Next.js 16.0.1 (App Router)
-- **React**: 19.2.0
+- **Framework**: Next.js 16.4 (App Router)
+- **React**: 19.3
 - **3D/WebXR**: Three.js, @react-three/fiber, @react-three/drei, @react-three/xr
 - **Animation**: GSAP, Three.js AnimationMixer
 - **Styling**: Tailwind CSS v4
@@ -25,7 +25,7 @@ An interactive 3D portfolio showcasing frontend development and VR skills in a s
 
 ### Prerequisites
 
-- Node.js 20+ installed
+- Node.js 20.9+ installed (required by Next.js 16)
 - npm or yarn package manager
 
 ### Installation

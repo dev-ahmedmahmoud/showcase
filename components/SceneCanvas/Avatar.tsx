@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useRef, useEffect, useState } from "react";
-import { Group, Vector3, Mesh, Object3D } from "three";
+import { Vector3, Mesh, Object3D } from "three";
 import { useFrame } from "@react-three/fiber";
 import { useGLTF, useAnimations } from "@react-three/drei";
 import { useScene } from "@/components/utils/SceneContext";

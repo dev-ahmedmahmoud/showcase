@@ -6,9 +6,9 @@ Interactive WebXR portfolio showcasing frontend/VR development in a 3D L-shaped 
 **Current State**: Fully functional with Mixamo character model (walk/idle animations), real 3D furniture models (desk, chair, couch, bed, TV, phone, speakers), animated LED elements, video-playing phone screen, and RGB ceiling hexagons. Avatar uses custom pathfinding algorithm with obstacle avoidance.
 
 ## Tech Stack
-- **Framework**: Next.js 16.0.1 (App Router), React 19.2.0, TypeScript (strict)
-- **3D/WebXR**: Three.js r181 via `@react-three/fiber`, `@react-three/drei`, `@react-three/xr`
-- **Animation**: GSAP 3.13, Three.js AnimationMixer
+- **Framework**: Next.js 16.4 (App Router), React 19.3, TypeScript 6 (strict)
+- **3D/WebXR**: Three.js r186 via `@react-three/fiber`, `@react-three/drei`, `@react-three/xr`
+- **Animation**: GSAP 3.15, Three.js AnimationMixer
 - **Pathfinding**: Custom recursive path-finding with obstacle avoidance (see `pathfinding.ts`)
 - **Styling**: Tailwind CSS v4 with PostCSS plugin (`@import "tailwindcss"` syntax)
 
@@ -101,7 +101,7 @@ const OBSTACLES: ObstacleShape[] = [
     document.body.style.cursor = 'auto';
   }}
 >
-  <primitive object={model.scene.clone()} />
+  <Model object={model.scene} />
 </group>
 ```
 
@@ -167,20 +167,32 @@ npm run lint     # ESLint v9 flat config
 
 ### Loading GLB Models
 ```tsx
-// Standard pattern (see Room.tsx)
+// Standard pattern (see Room/UI/PcSetup.tsx)
+import Model from '@/components/utils/Model';
 const desk = useGLTF('/models/desk.glb');
 
-// Later in JSX
-<primitive 
-  object={desk.scene.clone()}  // ALWAYS clone to reuse models
+// Later in JSX — Model clones the scene ONCE per mount (useMemo)
+<Model
+  object={desk.scene}
   position={[-2.6, 0, -6.4]}
   rotation={[0, Math.PI / 2, 0]}
   scale={[3.35, 2, 3]}
   castShadow
 />
+
+// At module level: start the download immediately (avoids the Suspense waterfall)
+useGLTF.preload('/models/desk.glb');
 ```
 
-**Why `.clone()`**: Without cloning, multiple instances share transformations (position/rotation update all instances).
+**Why `Model`**: Each instance needs its own clone (an Object3D can only have one parent), but NEVER write
+`object={x.scene.clone()}` inline — that creates a new object on every render and R3F then removes and re-adds
+the whole model each time.
+
+**Why `preload`**: with React 19 a suspending component stops its siblings from rendering, so without
+module-level `useGLTF.preload` / `useTexture.preload` the assets download one component at a time.
+
+**New GLBs**: compress before committing (meshopt + WebP textures, max 2048px) — drei's `useGLTF` decodes
+`EXT_meshopt_compression` and `EXT_texture_webp` out of the box. See MIGRATION_NOTES.md (C5).
 
 ### Loading Textures
 ```tsx
@@ -291,28 +303,22 @@ const MemoizedAnimatedSpeaker = memo(AnimatedSpeaker);
 ```
 
 ### Video Texture Pattern
-For screens playing video (phone screen):
+For screens playing video (phone screen, portrait) use `components/utils/useVideoTexture.ts`:
 
 ```tsx
-const [videoTexture, setVideoTexture] = useState<VideoTexture | null>(null);
+const videoTexture = useVideoTexture('/phone.mp4')?.texture; // null until the first frame is loaded
 
-useEffect(() => {
-  const video = document.createElement('video');
-  video.src = '/videos/demo.mp4';
-  video.loop = true;
-  video.muted = true;
-  video.playsInline = true;
-  video.play();
-  
-  const texture = new VideoTexture(video);
-  setVideoTexture(texture);
-  
-  return () => video.pause();
-}, []);
-
-// Apply to material
-<meshStandardMaterial map={videoTexture} emissive="#ffffff" />
+// Render the mesh only once the texture exists (a null → texture map would need material.needsUpdate)
+{videoTexture && (
+  <mesh>
+    <planeGeometry args={[0.19, 0.35]} />
+    <meshBasicMaterial map={videoTexture} toneMapped={false} />
+  </mesh>
+)}
 ```
+
+Never create `<video>` elements during render: components inside a suspending tree are rendered (and
+discarded) many times before they commit, and each discarded render would start another download.
 
 ### useFrame Color Cycling Pattern
 RGB mood lighting uses sine-wave interpolation:

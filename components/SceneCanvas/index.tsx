@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, forwardRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { XR, createXRStore } from "@react-three/xr";
 import { Preload } from "@react-three/drei";
@@ -146,7 +146,7 @@ export default function SceneCanvas({
   return (
     <div className="relative h-screen w-screen">
       <Canvas
-        shadows
+        shadows="percentage"
         gl={{
           antialias: true,
           alpha: false,

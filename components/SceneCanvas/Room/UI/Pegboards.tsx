@@ -1,6 +1,7 @@
 "use client";
 
 import { useGLTF } from "@react-three/drei";
+import Model from "@/components/utils/Model";
 
 export default function Pegboards() {
   const pegboard = useGLTF("/models/pegboard.glb");
@@ -16,29 +17,29 @@ export default function Pegboards() {
   return (
     <group position={[-1.47, 2, -2.9]}>
       {/* Pegboards */}
-      <primitive
-        object={pegboard.scene.clone()}
+      <Model
+        object={pegboard.scene}
         position={[0, 0, 0]}
         rotation={[0, 0, 0]}
         scale={[0.5, 0.25, 0.25]}
         castShadow
       />
-      <primitive
-        object={pegboard.scene.clone()}
+      <Model
+        object={pegboard.scene}
         position={[0, 0, 1.25]}
         rotation={[0, 0, 0]}
         scale={[0.5, 0.25, 0.25]}
         castShadow
       />
-      <primitive
-        object={pegboard.scene.clone()}
+      <Model
+        object={pegboard.scene}
         position={[0, 0.5, 0]}
         rotation={[0, 0, 0]}
         scale={[0.5, 0.25, 0.25]}
         castShadow
       />
-      <primitive
-        object={pegboard.scene.clone()}
+      <Model
+        object={pegboard.scene}
         position={[0, 0.5, 1.25]}
         rotation={[0, 0, 0]}
         scale={[0.5, 0.25, 0.25]}
@@ -47,15 +48,15 @@ export default function Pegboards() {
 
       {/* Controllers - 8 total (each type appears twice) */}
       {/* Controller 1 - Top Left & Bottom Right */}
-      <primitive
-        object={controller1.scene.clone()}
+      <Model
+        object={controller1.scene}
         position={[0.05, -0.2, -0.3]}
         rotation={[0, Math.PI / 2, 0]}
         scale={2.2}
         castShadow
       />
-      <primitive
-        object={controller1.scene.clone()}
+      <Model
+        object={controller1.scene}
         position={[0.05, -0.2, 1.55]}
         rotation={[0, Math.PI / 2, 0]}
         scale={2.2}
@@ -63,15 +64,15 @@ export default function Pegboards() {
       />
 
       {/* Controller 2 - Top Right & Bottom Left */}
-      <primitive
-        object={controller2.scene.clone()}
+      <Model
+        object={controller2.scene}
         position={[0.05, 0.52, 1.55]}
         rotation={[0, 0, 0]}
         scale={1.8}
         castShadow
       />
-      <primitive
-        object={controller2.scene.clone()}
+      <Model
+        object={controller2.scene}
         position={[0.05, 0.52, -0.3]}
         rotation={[0, 0, 0]}
         scale={1.8}
@@ -79,15 +80,15 @@ export default function Pegboards() {
       />
 
       {/* Controller 3 - Middle Left (both) */}
-      <primitive
-        object={controller3.scene.clone()}
+      <Model
+        object={controller3.scene}
         position={[0.05, 0.45, 0.35]}
         rotation={[0, Math.PI / 2, 0]}
         scale={0.006}
         castShadow
       />
-      <primitive
-        object={controller3.scene.clone()}
+      <Model
+        object={controller3.scene}
         position={[0.05, 0.45, 0.9]}
         rotation={[0, Math.PI / 2, 0]}
         scale={0.006}
@@ -95,15 +96,15 @@ export default function Pegboards() {
       />
 
       {/* Controller 4 - Center (both) */}
-      <primitive
-        object={controller4.scene.clone()}
+      <Model
+        object={controller4.scene}
         position={[-0.225, -0.05, 0.35]}
         rotation={[Math.PI / 2, 0, -Math.PI / 2]}
         scale={1.8}
         castShadow
       />
-      <primitive
-        object={controller4.scene.clone()}
+      <Model
+        object={controller4.scene}
         position={[-0.225, -0.05, 0.9]}
         rotation={[Math.PI / 2, 0, -Math.PI / 2]}
         scale={1.8}
@@ -111,22 +112,22 @@ export default function Pegboards() {
       />
 
       {/* ps portal and headsets - Center (both) */}
-      <primitive
-        object={headset1.scene.clone()}
+      <Model
+        object={headset1.scene}
         position={[0.11, 0.22, -0.3]}
         rotation={[0, Math.PI / 2, 0]}
         scale={0.09}
         castShadow
       />
-      <primitive
-        object={headset2.scene.clone()}
+      <Model
+        object={headset2.scene}
         position={[0.11, -0.225, 1.7]}
         rotation={[0, 0, 0]}
         scale={0.065}
         castShadow
       />
-      <primitive
-        object={psPortal.scene.clone()}
+      <Model
+        object={psPortal.scene}
         position={[0.11, 0.12, 0.6]}
         rotation={[0, Math.PI / 2, 0]}
         scale={0.5}
@@ -135,3 +136,13 @@ export default function Pegboards() {
     </group>
   );
 }
+
+// Start downloads at module load instead of waiting for the Suspense waterfall
+useGLTF.preload("/models/pegboard.glb");
+useGLTF.preload("/models/controller1.glb");
+useGLTF.preload("/models/controller2.glb");
+useGLTF.preload("/models/controller3.glb");
+useGLTF.preload("/models/controller4.glb");
+useGLTF.preload("/models/ps_portal.glb");
+useGLTF.preload("/models/headset1.glb");
+useGLTF.preload("/models/headset2.glb");

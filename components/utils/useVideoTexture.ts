@@ -1,47 +1,62 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 import { VideoTexture } from "three";
 
-interface VideoTextureHandle {
+export interface VideoTextureHandle {
+  source: string;
   texture: VideoTexture;
   video: HTMLVideoElement;
 }
 
-export function useVideoTexture(source: string): VideoTextureHandle {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const textureRef = useRef<VideoTexture | null>(null);
-  const lastSourceRef = useRef<string | null>(null);
+const release = ({ video, texture }: VideoTextureHandle) => {
+  video.pause();
+  texture.dispose();
+  // Drop the media resource so the browser stops buffering it
+  video.removeAttribute("src");
+  video.load();
+};
 
-  // Create video and texture only once per source
-  if (!videoRef.current || lastSourceRef.current !== source) {
-    if (textureRef.current) {
-      textureRef.current.dispose();
-    }
+// The video element is created in an effect (commit phase only). Creating it during
+// render started a new download for every render React discarded while suspended.
+// Returns null until the first frame of `source` is available; while a new source
+// loads, the previous handle keeps being returned (no black frame between slides).
+export function useVideoTexture(source: string): VideoTextureHandle | null {
+  const [handle, setHandle] = useState<VideoTextureHandle | null>(null);
+
+  useEffect(() => {
     const video = document.createElement("video");
     video.muted = true;
-    video.src = source;
     video.crossOrigin = "anonymous";
     video.loop = true;
     video.playsInline = true;
-    videoRef.current = video;
-    textureRef.current = new VideoTexture(video);
-    lastSourceRef.current = source;
-  }
+    video.src = source;
+    const next: VideoTextureHandle = {
+      source,
+      video,
+      texture: new VideoTexture(video),
+    };
+    let shown = false;
 
-  useEffect(() => {
-    const video = videoRef.current!;
-    const texture = textureRef.current!;
-    video.load();
-    video.currentTime = 0;
+    const onLoaded = () => {
+      shown = true;
+      setHandle(next);
+    };
+    video.addEventListener("loadeddata", onLoaded, { once: true });
     video.play().catch(() => {});
 
     return () => {
-      video.pause();
-      // Do not clear video.src to avoid breaking texture on hot reload
-      // texture.dispose(); // Do not dispose to persist across reloads
+      video.removeEventListener("loadeddata", onLoaded);
+      // A displayed handle is released by the effect below once it gets replaced
+      if (!shown) release(next);
     };
   }, [source]);
 
-  return { video: videoRef.current!, texture: textureRef.current! };
+  // Release the displayed video/texture after its replacement is committed (or on unmount)
+  useEffect(() => {
+    if (!handle) return;
+    return () => release(handle);
+  }, [handle]);
+
+  return handle;
 }

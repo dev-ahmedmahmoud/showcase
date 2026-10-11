@@ -29,7 +29,7 @@ export async function isVRHeadsetBrowser() {
 // Detects if browser is in mobile emulation mode (DevTools, Android Studio, Xcode Simulator)
 export function isEmulatedMobile() {
   if (typeof window === "undefined") return false;
-  const uaData = (navigator as any).userAgentData;
+  const uaData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
   if (uaData && uaData.mobile !== undefined) {
     return uaData.mobile;
   }
@@ -68,7 +68,6 @@ export function isTablet() {
   if (typeof window === "undefined") return false;
   const nav = window.navigator;
   const ua = nav.userAgent;
-  const platform = nav.platform || '';
   // iPad real or emulated
   if (/iPad/.test(ua)) return true;
   // iPad emulation: UA is Macintosh, touch support, iPad viewport
@@ -88,7 +87,6 @@ export function isMobile() {
   if (typeof window === "undefined") return false;
   const nav = window.navigator;
   const ua = nav.userAgent;
-  const platform = nav.platform || '';
   // iPhone real or emulated
   if (/iPhone|iPod/.test(ua)) return true;
   // Android phones: Android + Mobile, not Tablet

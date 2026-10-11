@@ -69,3 +69,10 @@ export default function Floor() {
     </group>
   );
 }
+
+// Same URL order as the useTexture objects in Floor and Walls (Object.values order = cache key)
+useTexture.preload([
+  "/textures/floor/diff.jpg",
+  "/textures/floor/nor.jpg",
+  "/textures/floor/arm.jpg",
+]);

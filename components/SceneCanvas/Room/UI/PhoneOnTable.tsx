@@ -6,6 +6,7 @@ import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import { useXR } from "@react-three/xr";
 import { links } from "@/components/utils/data";
 import GuideArrow from "./GuideArrow";
+import Model from "@/components/utils/Model";
 
 function PhoneOnTableHighlight({ onLinkClick }: { onLinkClick?: () => void }) {
   const session = useXR((state) => state.session);
@@ -63,7 +64,7 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
 ) {
   const table = useGLTF("/models/table.glb");
   const phone = useGLTF("/models/phone.glb");
-  const { texture: videoTexture } = useVideoTexture("/phone.mp4");
+  const videoTexture = useVideoTexture("/phone.mp4")?.texture;
 
   const [isPhoneHovered, setIsPhoneHovered] = useState(isTouch && !isPresenting);
   const { completeTourStep, tourStep } = useScene();
@@ -74,8 +75,8 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
 
   return (
     <group>
-      <primitive
-        object={table.scene.clone()}
+      <Model
+        object={table.scene}
         position={[2.1, 0, -1.55]}
         rotation={[0, 0, 0]}
         scale={0.85}
@@ -89,7 +90,7 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
         onClick={(e: ThreeEvent<MouseEvent>) => {
           e.stopPropagation();
           handleHotspotClick("phone");
-          !isPresenting && completeTourStep("phone");
+          if (!isPresenting) completeTourStep("phone");
         }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation();
@@ -105,18 +106,20 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
           }
         }}
       >
-        <primitive object={phone.scene.clone()} scale={0.2} castShadow />
+        <Model object={phone.scene} scale={0.2} castShadow />
 
         {/* Phone Screen Display - Video with realistic lighting */}
-        <mesh position={[0.005, -0.01, 0.0115]} rotation={[0, 0, 0]}>
-          <planeGeometry args={[0.19, 0.35]} />
-          <meshBasicMaterial
-            map={videoTexture}
-            toneMapped={false}
-            transparent
-            opacity={0.95}
-          />
-        </mesh>
+        {videoTexture && (
+          <mesh position={[0.005, -0.01, 0.0115]} rotation={[0, 0, 0]}>
+            <planeGeometry args={[0.19, 0.35]} />
+            <meshBasicMaterial
+              map={videoTexture}
+              toneMapped={false}
+              transparent
+              opacity={0.95}
+            />
+          </mesh>
+        )}
 
         {/* Highlight Frame - Phone shape (rounded rectangle) - Only show on hover */}
         {isPhoneHovered && (
@@ -189,3 +192,7 @@ const PhoneOnTable = forwardRef(function PhoneOnTable(
 });
 
 export default PhoneOnTable;
+
+// Start downloads at module load instead of waiting for the Suspense waterfall
+useGLTF.preload("/models/table.glb");
+useGLTF.preload("/models/phone.glb");

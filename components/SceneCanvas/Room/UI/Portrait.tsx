@@ -11,6 +11,7 @@ import { useVideoTexture } from "../../../utils/useVideoTexture";
 import { isTouchDevice } from "../../../utils/helperFunc";
 import { links } from "@/components/utils/data";
 import GuideArrow from "./GuideArrow";
+import Model from "@/components/utils/Model";
 
 // Project videos
 const PROJECT_VIDEOS = [
@@ -176,7 +177,7 @@ function PortraitHighlight({
       <VRButton
         position={[-0.45, 0, 0]}
         shape={visitShape}
-        onClick={(e) => onLinkClick("project", session)}
+        onClick={() => onLinkClick("project", session)}
         colors={["#06b6d4", "#a855f7"]}
         outlineColor="#06b6d4"
       >
@@ -195,7 +196,7 @@ function PortraitHighlight({
       <VRButton
         position={[0.45, 0, 0]}
         shape={visitShape}
-        onClick={(e) => onLinkClick("github", session)}
+        onClick={() => onLinkClick("github", session)}
         colors={["#06b6d4", "#a855f7"]}
         outlineColor="#a855f7"
       >
@@ -251,7 +252,7 @@ function PortraitHighlight({
       <VRButton
         position={[0, -0.45, 0]}
         shape={seeAllShape}
-        onClick={(e) => onLinkClick("all projects", session)}
+        onClick={() => onLinkClick("all projects", session)}
         colors={["#06b6d4", "#a855f7"]}
         outlineColor="#06b6d4"
       >
@@ -278,8 +279,6 @@ export default function Portrait({
   const wallDisplay = useGLTF("/models/wall_display.glb");
   const meshRef = useRef<Mesh>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const autoSlideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isTouch = isTouchDevice();
 
   const [isHovered, setIsHovered] = useState(isTouch && !isPresenting);
@@ -295,66 +294,24 @@ export default function Portrait({
     completeTourStep("portrait");
   };
 
-  const { texture: videoTexture, video } = useVideoTexture(currentSlide);
-
-  useEffect(() => {
-    const previousVideo = videoRef.current;
-    if (previousVideo && previousVideo !== video) {
-      previousVideo.pause();
-    }
-
-    videoRef.current = video;
-
-    return () => {
-      if (videoRef.current === video) {
-        videoRef.current = null;
-      }
-    };
-  }, [video]);
+  const videoHandle = useVideoTexture(currentSlide);
+  const videoTexture = videoHandle?.texture;
 
   // Auto-slide functionality based on video duration
   useEffect(() => {
-    // Clear existing timer
-    if (autoSlideTimerRef.current) {
-      clearTimeout(autoSlideTimerRef.current);
-    }
+    // Only time the slide that is actually on screen (the previous one stays visible while the next loads)
+    if (!videoHandle || videoHandle.source !== currentSlide) return;
 
-    const video = videoRef.current;
-    if (!video) return;
+    // Metadata is available: the handle is only returned after "loadeddata"
+    const duration = videoHandle.video.duration;
+    if (!Number.isFinite(duration)) return;
 
-    const scheduleNextSlide = () => {
-      // Wait for video metadata to load to get duration
-      if (
-        video.duration &&
-        !isNaN(video.duration) &&
-        isFinite(video.duration)
-      ) {
-        const duration = video.duration * 1000; // Convert to milliseconds
+    const timer = setTimeout(() => {
+      setCurrentIndex((prev) => (prev + 1) % PROJECT_VIDEOS.length);
+    }, duration * 1000);
 
-        autoSlideTimerRef.current = setTimeout(() => {
-          setCurrentIndex((prev) => (prev + 1) % PROJECT_VIDEOS.length);
-        }, duration);
-      } else {
-        // Fallback: if duration not available, wait and try again
-        setTimeout(scheduleNextSlide, 100);
-      }
-    };
-
-    // Try to schedule immediately if metadata is loaded
-    if (video.readyState >= 1) {
-      scheduleNextSlide();
-    } else {
-      // Wait for metadata to load
-      video.addEventListener("loadedmetadata", scheduleNextSlide);
-    }
-
-    return () => {
-      if (autoSlideTimerRef.current) {
-        clearTimeout(autoSlideTimerRef.current);
-      }
-      video.removeEventListener("loadedmetadata", scheduleNextSlide);
-    };
-  }, [currentIndex]);
+    return () => clearTimeout(timer);
+  }, [videoHandle, currentSlide]);
 
   // Manual navigation
   const handlePrevious = (e: ReactMouseEvent<HTMLButtonElement> | ThreeEvent<MouseEvent>) => {
@@ -412,8 +369,8 @@ export default function Portrait({
   return (
     <group position={position} rotation={rotation}>
       {/* Wall Display GLB Model */}
-      <primitive
-        object={wallDisplay.scene.clone()}
+      <Model
+        object={wallDisplay.scene}
         position={[0, 0, 0]}
         rotation={[-Math.PI / 2, Math.PI, Math.PI / 2]}
         scale={[4, 10.5, 5]}
@@ -589,3 +546,6 @@ export default function Portrait({
     </group>
   );
 }
+
+// Start downloads at module load instead of waiting for the Suspense waterfall
+useGLTF.preload("/models/wall_display.glb");

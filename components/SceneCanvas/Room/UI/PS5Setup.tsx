@@ -4,6 +4,8 @@ import { useGLTF, useTexture, Text } from "@react-three/drei";
 import { useXR } from "@react-three/xr";
 import { links } from "@/components/utils/data";
 import GuideArrow from "./GuideArrow";
+import { isTouchDevice } from "@/components/utils/helperFunc";
+import Model from "@/components/utils/Model";
 
 function AnimatedSpeaker({
   position,
@@ -18,7 +20,7 @@ function AnimatedSpeaker({
 
   return (
     <group position={position} rotation={rotation} scale={scale}>
-      <primitive object={speaker.scene.clone()} castShadow />
+      <Model object={speaker.scene} castShadow />
     </group>
   );
 }
@@ -117,9 +119,9 @@ const Tv = forwardRef(function Tv(
         }
       }}
     >
-      <primitive
+      <Model
         rotation={[0, Math.PI / 0.95, 0]}
-        object={tv.scene.clone()}
+        object={tv.scene}
         castShadow
       />
 
@@ -212,8 +214,8 @@ function TvUnit({
   const psLamp = useGLTF("/models/playstation_lamp.glb");
   return (
     <group position={position} rotation={rotation} scale={scale}>
-      <primitive
-        object={tvUnit.scene.clone()}
+      <Model
+        object={tvUnit.scene}
         position={[0, 0, 0]}
         rotation={[0, 0, 0]}
         scale={1.8}
@@ -221,8 +223,8 @@ function TvUnit({
       />
 
       {/* PS5 Console */}
-      <primitive
-        object={ps5.scene.clone()}
+      <Model
+        object={ps5.scene}
         position={[0.15, 0.64, -1.1]}
         rotation={[0, Math.PI / 2, 0]}
         scale={2}
@@ -230,8 +232,8 @@ function TvUnit({
       />
 
       {/* VR Headset on TV Unit */}
-      <primitive
-        object={vrHeadset.scene.clone()}
+      <Model
+        object={vrHeadset.scene}
         position={[0.05, 0.685, 0.95]}
         rotation={[0, Math.PI / 2, 0]}
         scale={0.8}
@@ -239,8 +241,8 @@ function TvUnit({
       />
 
       {/* PlayStation Lamp on TV Unit */}
-      <primitive
-        object={psLamp.scene.clone()}
+      <Model
+        object={psLamp.scene}
         position={[0, 0.9, 0.065]}
         rotation={[0, Math.PI / 2, 0]}
         scale={0.065}
@@ -335,8 +337,8 @@ const PS5Setup = forwardRef(function PS5Setup(
       />
 
       {/* PlayStation Lamp above TV */}
-      <primitive
-        object={psLampWall.scene.clone()}
+      <Model
+        object={psLampWall.scene}
         position={[1.86, 3.1, -0.15]}
         rotation={[0, -Math.PI / 2, 0]}
         scale={5}
@@ -347,3 +349,16 @@ const PS5Setup = forwardRef(function PS5Setup(
 });
 
 export default PS5Setup;
+
+// Start downloads at module load instead of waiting for the Suspense waterfall
+useGLTF.preload("/models/speaker.glb");
+useGLTF.preload("/models/tv.glb");
+useGLTF.preload("/models/ps_lamp.glb");
+useTexture.preload("/tv.png");
+// TvUnit is only rendered on non-touch devices (see PS5Setup above)
+if (!isTouchDevice()) {
+  useGLTF.preload("/models/tv_unit.glb");
+  useGLTF.preload("/models/ps5.glb");
+  useGLTF.preload("/models/vr.glb");
+  useGLTF.preload("/models/playstation_lamp.glb");
+}

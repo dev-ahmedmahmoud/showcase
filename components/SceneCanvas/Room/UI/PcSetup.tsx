@@ -4,6 +4,7 @@ import { HotspotId, useScene } from "@/components/utils/SceneContext";
 import { useXR } from "@react-three/xr";
 import { links } from "@/components/utils/data";
 import GuideArrow from "./GuideArrow";
+import Model from "@/components/utils/Model";
 
 function PcSetupHighlight({ onLinkClick }: { onLinkClick: () => void }) {
   const session = useXR((state) => state.session);
@@ -62,10 +63,9 @@ const PcSetup = forwardRef(function PcSetup(
   const desk = useGLTF("/models/desk.glb");
   const pc = useGLTF("/models/pc.glb");
   const meta = useGLTF("/models/meta.glb");
-  const pcChair = useGLTF("/models/pc_chair.glb");
   const pcDisplayTexture = useTexture("/pc_display.png");
 
-  const { focusedHotspot, tourStep, completeTourStep } = useScene();
+  const { tourStep, completeTourStep } = useScene();
 
   const [isMonitorHovered, setIsMonitorHovered] = useState(isTouch && !isPresenting);
 
@@ -81,8 +81,8 @@ const PcSetup = forwardRef(function PcSetup(
       {/* ============================================ */}
 
       {/* PC Desk */}
-      <primitive
-        object={desk.scene.clone()}
+      <Model
+        object={desk.scene}
         position={[0.2, -0.3, -12.425]}
         rotation={[0, Math.PI / 2, 0]}
         scale={[0.79, 0.5, 0.5]} // [width (X), height (Y), depth (Z)]
@@ -90,8 +90,8 @@ const PcSetup = forwardRef(function PcSetup(
       />
 
       {/* PC Tower */}
-      <primitive
-        object={pc.scene.clone()}
+      <Model
+        object={pc.scene}
         position={[-2.3, 1.76, -8.45]}
         rotation={[0, 0, 0]}
         scale={2}
@@ -99,8 +99,8 @@ const PcSetup = forwardRef(function PcSetup(
       />
 
       {/* Meta quest on desk */}
-      <primitive
-        object={meta.scene.clone()}
+      <Model
+        object={meta.scene}
         position={[-2.2, 1.6, -5.4]}
         rotation={[0, Math.PI / 1.5, 0]}
         scale={1.3}
@@ -115,7 +115,7 @@ const PcSetup = forwardRef(function PcSetup(
           onClick={(e) => {
             e.stopPropagation();
             handleHotspotClick("pc");
-            !isPresenting && completeTourStep("pc");
+            if (!isPresenting) completeTourStep("pc");
           }}
           onPointerOver={(e) => {
             e.stopPropagation();
@@ -132,7 +132,7 @@ const PcSetup = forwardRef(function PcSetup(
           }}
         >
           {/* Monitor GLB Model */}
-          <primitive object={monitor.scene.clone()} scale={1} castShadow />
+          <Model object={monitor.scene} scale={1} castShadow />
 
           {/* Curved Monitor Display with texture */}
           <mesh
@@ -222,3 +222,10 @@ const PcSetup = forwardRef(function PcSetup(
   );
 });
 export default PcSetup;
+
+// Start downloads at module load instead of waiting for the Suspense waterfall
+useGLTF.preload("/models/monitor.glb");
+useGLTF.preload("/models/desk.glb");
+useGLTF.preload("/models/pc.glb");
+useGLTF.preload("/models/meta.glb");
+useTexture.preload("/pc_display.png");
